@@ -1,0 +1,6 @@
+{
+  "name": "Smart Section Manager",
+  "description": "Comprehensive academic and section management portal powered by Supabase PostgreSQL, Auth, Storage, Realtime, and strict Row Level Security policies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
