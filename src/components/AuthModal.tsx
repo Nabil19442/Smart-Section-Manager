@@ -12,6 +12,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const { signIn, signUp } = useAuth();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [isForgotMode, setIsForgotMode] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,27 +56,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           roll: roll.trim() || undefined,
         };
 
-        const res = await signUp(email.trim(), password, metadata);
+        const submittedEmail = email.trim();
+        const res = await signUp(submittedEmail, password, metadata);
         if (res.error) {
           setErrorMsg(res.error.message);
         } else {
+          // Do NOT auto-login, switch to sign in mode
+          setIsRegisterMode(false);
+          setEmail(submittedEmail);
+          setPassword('');
           setSuccessMsg(
-            'Account registered! If email confirmation is enabled in your Supabase project, please check your inbox, otherwise you are signed in.'
+            'Your account has been created. Please check your email and verify your address before logging in.'
           );
-          setTimeout(() => {
-            onClose();
-          }, 1800);
         }
       } else {
         const res = await signIn(email.trim(), password);
         if (res.error) {
           setErrorMsg(res.error.message);
-        } else {
+        } else if (res.data?.session) {
+          // Only redirect/close when a real session exists after login
           onClose();
+        } else {
+          setErrorMsg('No active session found. Please confirm your email before signing in.');
         }
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'An authentication error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetEmail = email.trim();
+    if (!targetEmail) {
+      setErrorMsg('Please enter your email address to receive a recovery link.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
+        redirectTo: `${window.location.origin}/login?type=recovery`,
+      });
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        setSuccessMsg(
+          `Password recovery link has been sent to ${targetEmail}. Please check your inbox.`
+        );
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to send recovery email. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -90,10 +126,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                {isRegisterMode ? 'Student Registration' : 'Student & Admin Sign In'}
+                {isForgotMode
+                  ? 'Reset Password'
+                  : isRegisterMode
+                  ? 'Student Registration'
+                  : 'Student & Admin Sign In'}
               </h3>
               <p className="text-xs text-slate-500">
-                {isRegisterMode
+                {isForgotMode
+                  ? 'Send a password recovery link to your registered email'
+                  : isRegisterMode
                   ? 'Create your university portal account'
                   : 'Access course resources, notices, and deadlines'}
               </p>
@@ -108,7 +150,68 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {isForgotMode ? (
+          <form onSubmit={handleForgotPassword} className="p-6 space-y-4">
+            {errorMsg && (
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Email Address *
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="student@university.edu"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors mt-2"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+              <span>Send Recovery Link</span>
+            </button>
+
+            <div className="pt-3 border-t border-slate-100 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotMode(false);
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }}
+                className="text-xs text-blue-600 font-semibold hover:underline"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {errorMsg && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -196,9 +299,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Password *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Password *
+              </label>
+              {!isRegisterMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotMode(true);
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-[11px] font-medium text-blue-600 hover:underline"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -247,6 +365,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

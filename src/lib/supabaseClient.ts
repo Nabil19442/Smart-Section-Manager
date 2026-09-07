@@ -1,9 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
 
-// Environment variables
-const ENV_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const ENV_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Environment variables with fallback to user's project credentials
+const ENV_URL = import.meta.env.VITE_SUPABASE_URL || 'https://qtxkcwruqhrozbqqrgfa.supabase.co';
+const ENV_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_QoHQj14Cgtut-rgUvpPXwQ_Fh4-KVHu';
 
 // Fallback / Storage overrides (useful for testing or direct connection in preview)
 const STORAGE_KEY_URL = 'campus_supabase_url';

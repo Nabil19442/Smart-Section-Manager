@@ -14,9 +14,10 @@ import { ActivityLogsView } from './components/ActivityLogsView';
 import { ProfileView } from './components/ProfileView';
 import { AuthModal } from './components/AuthModal';
 import { SetupGuideModal } from './components/SetupGuideModal';
+import { LoginPage } from './components/LoginPage';
 import { supabase } from './lib/supabaseClient';
 import { getFallbackCounts } from './lib/fallbackData';
-import { Database, Shield, CheckCircle2, AlertTriangle, Layers, BookOpen, Clock, Bell } from 'lucide-react';
+import { Database, Shield, CheckCircle2, AlertTriangle, Layers, BookOpen, Clock, Bell, Loader2 } from 'lucide-react';
 
 const TAB_TITLES: Record<TabType, string> = {
   notices: 'Notices & Announcements',
@@ -33,10 +34,86 @@ const TAB_TITLES: Record<TabType, string> = {
 
 const AppContent: React.FC = () => {
   const { isConfigured, isAdmin } = useAuth();
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
+  const [isVerifyingSession, setIsVerifyingSession] = useState<boolean>(true);
+  const [hasValidSession, setHasValidSession] = useState<boolean>(false);
+
   const [activeTab, setActiveTab] = useState<TabType>('notices');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Protect private pages with supabase.auth.getSession() — if no session, redirect to /login
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifySession = async (path: string) => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const active = Boolean(data?.session);
+        if (!isMounted) return;
+
+        setHasValidSession(active);
+
+        // If no session exists, protect private pages by redirecting to /login
+        if (!active) {
+          if (path !== '/login') {
+            window.history.replaceState(null, '', '/login');
+            setCurrentPath('/login');
+          }
+        } else {
+          // If a real session already exists and user visits /login, redirect to dashboard /
+          if (path === '/login') {
+            window.history.replaceState(null, '', '/');
+            setCurrentPath('/');
+          }
+        }
+      } catch (err) {
+        console.error('Error verifying session with supabase.auth.getSession():', err);
+        if (!isMounted) return;
+        setHasValidSession(false);
+        if (path !== '/login') {
+          window.history.replaceState(null, '', '/login');
+          setCurrentPath('/login');
+        }
+      } finally {
+        if (isMounted) setIsVerifyingSession(false);
+      }
+    };
+
+    const initialPath = window.location.pathname || '/';
+    verifySession(initialPath);
+
+    const handlePopState = () => {
+      const path = window.location.pathname || '/';
+      setCurrentPath(path);
+      verifySession(path);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Synchronize on auth changes (logout, login, session expiry)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+      const active = Boolean(session);
+      setHasValidSession(active);
+      const path = window.location.pathname || '/';
+
+      if (!active && path !== '/login') {
+        window.history.replaceState(null, '', '/login');
+        setCurrentPath('/login');
+      } else if (active && path === '/login') {
+        window.history.replaceState(null, '', '/');
+        setCurrentPath('/');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('popstate', handlePopState);
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const [counts, setCounts] = useState<{
     notices?: number;
@@ -72,8 +149,33 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchCounts();
-  }, [isConfigured, activeTab]);
+    if (hasValidSession) {
+      fetchCounts();
+    }
+  }, [isConfigured, activeTab, hasValidSession]);
+
+  // Loading state while verifying auth session with supabase.auth.getSession()
+  if (isVerifyingSession) {
+    return (
+      <div className="h-screen w-full bg-[#0F172A] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <p className="text-xs font-semibold text-slate-400">Verifying authentication session...</p>
+      </div>
+    );
+  }
+
+  // If no session exists or user navigated to /login, show LoginPage
+  if (!hasValidSession || currentPath === '/login') {
+    return (
+      <LoginPage
+        onLoginSuccess={() => {
+          setHasValidSession(true);
+          window.history.pushState(null, '', '/');
+          setCurrentPath('/');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-[#F1F5F9] font-sans text-[#1E293B] overflow-hidden">

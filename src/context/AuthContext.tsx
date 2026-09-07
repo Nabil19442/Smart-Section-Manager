@@ -14,8 +14,8 @@ interface AuthContextType {
   isLoading: boolean;
   isConfigured: boolean;
   error: string | null;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUp: (email: string, password: string, metadata: { full_name: string; student_id?: string; roll?: string; section?: string; batch?: string }) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
+  signUp: (email: string, password: string, metadata: { full_name: string; student_id?: string; roll?: string; section?: string; batch?: string }) => Promise<{ data: { user: User | null; session: Session | null } | null; error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   refreshProfile: () => Promise<void>;
@@ -121,24 +121,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (signInErr) {
         setError(signInErr.message);
-        return { error: signInErr };
+        return { data: null, error: signInErr };
+      }
+
+      if (data.session) {
+        setSession(data.session);
       }
 
       if (data.user) {
+        setUser(data.user);
         await fetchProfile(data.user.id);
         // Log login activity
-        await supabase.from('activity_logs').insert({
-          user_id: data.user.id,
-          action: 'LOGIN',
-          entity_type: 'auth',
-          entity_id: data.user.id,
-        });
+        try {
+          await supabase.from('activity_logs').insert({
+            user_id: data.user.id,
+            action: 'LOGIN',
+            entity_type: 'auth',
+            entity_id: data.user.id,
+          });
+        } catch {
+          // table might not exist in uninitialized database
+        }
       }
 
-      return { error: null };
+      return { data, error: null };
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred during sign in.');
-      return { error: err };
+      return { data: null, error: err };
     }
   };
 
@@ -166,37 +175,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (signUpErr) {
         setError(signUpErr.message);
-        return { error: signUpErr };
+        return { data: null, error: signUpErr };
       }
 
-      // If session established right away (email confirmation disabled in Supabase settings)
-      if (data.user) {
-        await fetchProfile(data.user.id);
+      // User requested: "Do NOT auto-login" after signUp.
+      // If Supabase created a session automatically, ensure user is signed out so they must explicitly log in.
+      if (data.session) {
+        await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+        setProfile(null);
       }
 
-      return { error: null };
+      return { data, error: null };
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred during sign up.');
-      return { error: err };
+      return { data: null, error: err };
     }
   };
 
   const signOut = async () => {
     try {
       if (user) {
-        await supabase.from('activity_logs').insert({
-          user_id: user.id,
-          action: 'LOGOUT',
-          entity_type: 'auth',
-          entity_id: user.id,
-        });
+        try {
+          await supabase.from('activity_logs').insert({
+            user_id: user.id,
+            action: 'LOGOUT',
+            entity_type: 'auth',
+            entity_id: user.id,
+          });
+        } catch {
+          // ignore
+        }
       }
       await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    } finally {
       setUser(null);
       setSession(null);
       setProfile(null);
-    } catch (err) {
-      console.error('Error signing out:', err);
+      // Redirect to /login if currently on a private route
+      if (window.location.pathname !== '/login') {
+        window.history.pushState(null, '', '/login');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
     }
   };
 
