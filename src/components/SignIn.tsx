@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   ShieldCheck,
   KeyRound,
+  Chrome,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { signInWithGoogle } from '../supabaseClient';
 
 interface SignInProps {
   initialEmail?: string;
@@ -37,6 +39,9 @@ export const SignIn: React.FC<SignInProps> = ({
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
   const [forgotErrorMsg, setForgotErrorMsg] = useState<string | null>(null);
+
+  // Google OAuth state
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Pre-fill / sync email whenever initialEmail updates from signup redirect
   useEffect(() => {
@@ -106,6 +111,23 @@ export const SignIn: React.FC<SignInProps> = ({
       setForgotErrorMsg(err.message || 'Failed to send recovery email. Please try again.');
     } finally {
       setForgotLoading(false);
+    }
+  };
+
+  // Google OAuth Login function connected to "Continue with Google" button
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setErrorMsg(error.message);
+        setGoogleLoading(false);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to connect to Google. Please check your Supabase OAuth settings.');
+      setGoogleLoading(false);
     }
   };
 
@@ -287,7 +309,7 @@ export const SignIn: React.FC<SignInProps> = ({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || googleLoading}
           id="signin-submit-button"
           className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors mt-3"
         >
@@ -299,6 +321,32 @@ export const SignIn: React.FC<SignInProps> = ({
           <span>Sign In to Portal</span>
         </button>
       </form>
+
+      {/* Divider */}
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center text-[11px]">
+          <span className="bg-white px-2 text-slate-400 font-medium">or</span>
+        </div>
+      </div>
+
+      {/* Continue with Google Button */}
+      <button
+        type="button"
+        id="continue-with-google-button"
+        onClick={handleGoogleSignIn}
+        disabled={googleLoading || loading}
+        className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors disabled:opacity-50"
+      >
+        {googleLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+        ) : (
+          <Chrome className="w-4 h-4 text-slate-600" />
+        )}
+        <span>Continue with Google</span>
+      </button>
 
       {/* Demo helper */}
       <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">

@@ -10,9 +10,11 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Chrome,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { signInWithGoogle } from '../supabaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -35,6 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [roll, setRoll] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -113,6 +116,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       setErrorMsg(err.message || 'Failed to send recovery email. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setErrorMsg(null);
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setErrorMsg(error.message);
+        setGoogleLoading(false);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to connect to Google OAuth.');
+      setGoogleLoading(false);
     }
   };
 
@@ -338,7 +356,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors mt-2"
           >
             {loading ? (
@@ -348,6 +366,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             )}
             <span>{isRegisterMode ? 'Create Student Account' : 'Sign In with Supabase Auth'}</span>
           </button>
+
+          {!isRegisterMode && (
+            <>
+              <div className="relative my-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200" />
+                </div>
+                <div className="relative flex justify-center text-[11px]">
+                  <span className="bg-white px-2 text-slate-400 font-medium">or</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading || loading}
+                className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors disabled:opacity-50"
+              >
+                {googleLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                ) : (
+                  <Chrome className="w-4 h-4 text-slate-600" />
+                )}
+                <span>Continue with Google</span>
+              </button>
+            </>
+          )}
 
           <div className="pt-3 border-t border-slate-100 text-center">
             <button
