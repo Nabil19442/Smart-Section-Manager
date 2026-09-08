@@ -198,6 +198,7 @@ export const ExamsView: React.FC = () => {
         end_time: `${formData.end_time}:00`,
         room: formData.room.trim(),
         instructions: formData.instructions.trim() || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };

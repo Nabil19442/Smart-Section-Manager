@@ -144,6 +144,7 @@ export const CalendarView: React.FC = () => {
         start_datetime: new Date(formData.start_datetime).toISOString(),
         end_datetime: new Date(formData.end_datetime).toISOString(),
         location: formData.location.trim() || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };

@@ -171,7 +171,7 @@ export const SetupGuideModal: React.FC<SetupGuideModalProps> = ({
                 <p className="text-emerald-400">-- 1. Open Supabase Dashboard &gt; SQL Editor</p>
                 <p className="text-emerald-400">-- 2. Paste contents of /supabase/schema.sql and Click RUN</p>
                 <p className="text-emerald-400">-- 3. Run /supabase/seed.sql to insert sample academic data</p>
-                <p className="text-emerald-400">-- 4. Enable Supabase Storage buckets: study-materials and notice-attachments</p>
+                <p className="text-emerald-400">-- 4. Supabase Storage private bucket: "app-files" with user folder policy (auth.uid()/...)</p>
               </div>
             </div>
           </div>

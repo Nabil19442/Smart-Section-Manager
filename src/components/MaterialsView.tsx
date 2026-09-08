@@ -27,6 +27,11 @@ import {
   getFallbackCourses,
 } from '../lib/fallbackData';
 import { SchemaNoticeBanner } from './SchemaNoticeBanner';
+import {
+  uploadUserFile,
+  getSignedFileUrl,
+  deleteStorageFile,
+} from '../lib/storageService';
 
 type Material = Database['public']['Tables']['materials']['Row'] & {
   courses?: Database['public']['Tables']['courses']['Row'] | null;
@@ -83,6 +88,7 @@ export const MaterialsView: React.FC = () => {
     file_name: '',
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -153,6 +159,35 @@ export const MaterialsView: React.FC = () => {
     };
   }, [isConfigured]);
 
+  // Generate and cache signed URLs for all materials with files in private storage
+  useEffect(() => {
+    let isMounted = true;
+    const resolveSignedUrls = async () => {
+      const urlMap: Record<string, string> = {};
+      for (const item of materials) {
+        if (item.file_url) {
+          try {
+            const signed = await getSignedFileUrl(item.file_url);
+            if (signed && isMounted) {
+              urlMap[item.id] = signed;
+            }
+          } catch {}
+        }
+      }
+      if (isMounted && Object.keys(urlMap).length > 0) {
+        setSignedUrls((prev) => ({ ...prev, ...urlMap }));
+      }
+    };
+
+    if (materials.length > 0) {
+      resolveSignedUrls();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [materials]);
+
   const openCreateModal = () => {
     setEditingMaterial(null);
     setFormData({
@@ -199,34 +234,27 @@ export const MaterialsView: React.FC = () => {
       let fileUrl = formData.file_url;
       let fileName = formData.file_name;
 
-      // Handle file upload to Supabase Storage 'study-materials' bucket
+      // Handle file upload to Supabase Storage 'app-files' bucket (folder: ${auth.uid()}/materials/...)
       if (selectedFile) {
-        // Max 50MB check
-        if (selectedFile.size > 50 * 1024 * 1024) {
-          throw new Error('File size exceeds the 50MB storage limit.');
+        if (!user) {
+          throw new Error('Authentication required: please log in to upload materials.');
         }
 
-        const fileExt = selectedFile.name.split('.').pop();
-        const safeName = `${Date.now()}_${selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        const filePath = `materials/${formData.course_id}/${safeName}`;
+        const uploadResult = await uploadUserFile({
+          file: selectedFile,
+          userId: user.id,
+          featureName: 'materials',
+          itemId: editingMaterial?.id,
+          maxSizeMB: 50,
+        });
 
-        const { error: uploadErr } = await supabase.storage
-          .from('study-materials')
-          .upload(filePath, selectedFile, {
-            cacheControl: '3600',
-            upsert: false,
-          });
-
-        if (uploadErr) {
-          throw new Error(`Storage upload failed: ${uploadErr.message}`);
+        // If editing and replacing an existing file in storage, delete previous file
+        if (editingMaterial?.file_url && editingMaterial.file_url !== uploadResult.path) {
+          await deleteStorageFile(editingMaterial.file_url);
         }
 
-        const { data: publicUrlData } = supabase.storage
-          .from('study-materials')
-          .getPublicUrl(filePath);
-
-        fileUrl = publicUrlData.publicUrl;
-        fileName = selectedFile.name;
+        fileUrl = uploadResult.path;
+        fileName = uploadResult.fileName;
       }
 
       const payload = {
@@ -237,6 +265,7 @@ export const MaterialsView: React.FC = () => {
         file_url: fileUrl || null,
         file_name: fileName || null,
         external_url: formData.external_url.trim() || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };
@@ -290,6 +319,12 @@ export const MaterialsView: React.FC = () => {
     if (!window.confirm(`Are you sure you want to delete "${item.title}"?`)) return;
 
     try {
+      // 1. Remove file from Supabase Storage 'app-files' if present
+      if (item.file_url) {
+        await deleteStorageFile(item.file_url);
+      }
+
+      // 2. Remove record from database
       const { error: deleteErr } = await supabase.from('materials').delete().eq('id', item.id);
       if (deleteErr) throw new Error(deleteErr.message);
 
@@ -523,10 +558,25 @@ export const MaterialsView: React.FC = () => {
                 <div className="flex items-center gap-2">
                   {item.file_url && (
                     <a
-                      href={item.file_url}
+                      href={signedUrls[item.id] || '#'}
+                      onClick={async (e) => {
+                        if (!signedUrls[item.id]) {
+                          e.preventDefault();
+                          try {
+                            const signed = await getSignedFileUrl(item.file_url);
+                            if (signed) {
+                              window.open(signed, '_blank', 'noopener,noreferrer');
+                            } else {
+                              alert('Unable to generate secure download link from storage.');
+                            }
+                          } catch (err: any) {
+                            alert(`Download error: ${err.message}`);
+                          }
+                        }
+                      }}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>Download</span>
@@ -646,9 +696,16 @@ export const MaterialsView: React.FC = () => {
 
               {/* Upload to Supabase Storage */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Upload File (Supabase Storage: study-materials)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Upload File (Supabase Storage: app-files)
+                  </label>
+                  {formData.file_name && !selectedFile && (
+                    <span className="text-[11px] text-blue-600 font-medium truncate max-w-[200px]">
+                      Current: {formData.file_name}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="file"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}

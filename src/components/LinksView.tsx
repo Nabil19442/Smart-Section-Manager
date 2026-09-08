@@ -133,6 +133,7 @@ export const LinksView: React.FC = () => {
         description: formData.description.trim() || null,
         url: formData.url.trim(),
         course_id: formData.course_id || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };

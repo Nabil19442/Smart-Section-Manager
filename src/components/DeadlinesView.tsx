@@ -207,6 +207,7 @@ export const DeadlinesView: React.FC = () => {
         due_time: formData.due_time ? `${formData.due_time}:00` : null,
         external_url: formData.external_url.trim() || null,
         attachment_url: formData.attachment_url.trim() || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };

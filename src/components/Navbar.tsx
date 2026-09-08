@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { getSignedFileUrl } from '../lib/storageService';
 import type { Database as DBType } from '../types/database.types';
 
 type Notification = DBType['public']['Tables']['notifications']['Row'];
@@ -41,6 +42,28 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
+
+  // Fetch signed avatar URL when user profile updates
+  useEffect(() => {
+    let isMounted = true;
+    const loadAvatar = async () => {
+      if (profile?.avatar_url) {
+        try {
+          const signed = await getSignedFileUrl(profile.avatar_url);
+          if (isMounted) setAvatarSignedUrl(signed);
+        } catch {
+          if (isMounted) setAvatarSignedUrl(null);
+        }
+      } else {
+        if (isMounted) setAvatarSignedUrl(null);
+      }
+    };
+    loadAvatar();
+    return () => {
+      isMounted = false;
+    };
+  }, [profile?.avatar_url]);
 
   // Fetch notifications and subscribe to realtime for current user
   useEffect(() => {
@@ -249,8 +272,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}
               className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-orange-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-2xs">
-                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'JD'}
+              <div className="w-8 h-8 rounded-full bg-orange-400 text-slate-950 font-bold flex items-center justify-center text-xs shadow-2xs overflow-hidden">
+                {avatarSignedUrl ? (
+                  <img src={avatarSignedUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'JD'
+                )}
               </div>
               <span className="text-xs font-semibold text-slate-700 max-w-[120px] truncate hidden md:inline">
                 {profile?.full_name || user.email?.split('@')[0]}

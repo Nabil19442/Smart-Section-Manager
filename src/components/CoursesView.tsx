@@ -163,6 +163,7 @@ export const CoursesView: React.FC = () => {
         course_name: formData.course_name.trim(),
         teacher_name: formData.teacher_name.trim(),
         description: formData.description.trim() || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };

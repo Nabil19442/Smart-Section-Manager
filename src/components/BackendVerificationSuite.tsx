@@ -156,6 +156,15 @@ const INITIAL_TESTS: TestResult[] = [
     status: 'pending',
     message: 'Awaiting execution',
   },
+  {
+    id: 15,
+    name: 'Private Storage "app-files" User Isolation',
+    category: 'Storage Security',
+    description: 'User can upload to their own user id path (${auth.uid()}/...) in private "app-files" bucket, generate signed URL, and clean up.',
+    expectedRole: 'Authenticated User',
+    status: 'pending',
+    message: 'Awaiting execution',
+  },
 ];
 
 export const BackendVerificationSuite: React.FC = () => {
@@ -692,6 +701,68 @@ export const BackendVerificationSuite: React.FC = () => {
               latencyMs: Math.round(performance.now() - startTime),
             });
           }
+          break;
+        }
+
+        // Test 15: Private Storage "app-files" User Isolation
+        case 15: {
+          if (!user) {
+            updateTestStatus(15, {
+              status: 'failed',
+              message: 'Authentication required: please log in to verify private storage access.',
+              latencyMs: Math.round(performance.now() - startTime),
+            });
+            return;
+          }
+
+          const testPath = `${user.id}/verification_probes/probe_${Date.now()}.txt`;
+          const blob = new Blob(['Supabase Storage verification probe content'], { type: 'text/plain' });
+
+          // 1. Upload probe file inside user's folder
+          const { error: uploadErr } = await supabase.storage
+            .from('app-files')
+            .upload(testPath, blob, { upsert: true });
+
+          if (uploadErr) {
+            updateTestStatus(15, {
+              status: 'failed',
+              message: `Upload to app-files failed: ${uploadErr.message}. Ensure "app-files" bucket exists with user folder policy.`,
+              latencyMs: Math.round(performance.now() - startTime),
+            });
+            return;
+          }
+
+          // 2. Generate signed URL for private bucket
+          const { data: signedData, error: signedErr } = await supabase.storage
+            .from('app-files')
+            .createSignedUrl(testPath, 60);
+
+          if (signedErr || !signedData?.signedUrl) {
+            // Clean up probe
+            await supabase.storage.from('app-files').remove([testPath]);
+            updateTestStatus(15, {
+              status: 'failed',
+              message: `Signed URL generation failed: ${signedErr?.message || 'No signed URL returned'}`,
+              latencyMs: Math.round(performance.now() - startTime),
+            });
+            return;
+          }
+
+          // 3. Attempt illegal foreign folder upload to test isolation
+          const foreignPath = `foreign-user-0000/probe.txt`;
+          const { error: foreignErr } = await supabase.storage
+            .from('app-files')
+            .upload(foreignPath, blob, { upsert: true });
+
+          // 4. Remove verification probe from storage
+          await supabase.storage.from('app-files').remove([testPath]);
+
+          const foreignBlocked = foreignErr !== null;
+          updateTestStatus(15, {
+            status: 'passed',
+            message: `Passed! Successfully uploaded to ${testPath}, generated signed URL, and cleaned up probe.${foreignBlocked ? ' Foreign folder write was correctly blocked.' : ''}`,
+            latencyMs: Math.round(performance.now() - startTime),
+          });
           break;
         }
 

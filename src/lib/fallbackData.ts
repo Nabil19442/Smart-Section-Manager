@@ -20,6 +20,7 @@ export type ImportantLink = Database['public']['Tables']['important_links']['Row
   courses?: Course | null;
 };
 export type ActivityLog = Database['public']['Tables']['activity_logs']['Row'];
+export type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export function isTableMissingError(err: any): boolean {
   if (!err) return false;

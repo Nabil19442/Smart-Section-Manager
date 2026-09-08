@@ -81,6 +81,7 @@ export interface Database {
       courses: {
         Row: {
           id: string;
+          user_id?: string | null;
           course_code: string;
           course_name: string;
           teacher_name: string;
@@ -91,6 +92,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           course_code: string;
           course_name: string;
           teacher_name: string;
@@ -101,6 +103,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           course_code?: string;
           course_name?: string;
           teacher_name?: string;
@@ -113,6 +116,7 @@ export interface Database {
       notices: {
         Row: {
           id: string;
+          user_id?: string | null;
           title: string;
           description: string;
           course_id: string | null;
@@ -128,6 +132,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           title: string;
           description: string;
           course_id?: string | null;
@@ -141,6 +146,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           title?: string;
           description?: string;
           course_id?: string | null;
@@ -156,6 +162,7 @@ export interface Database {
       materials: {
         Row: {
           id: string;
+          user_id?: string | null;
           title: string;
           description: string | null;
           course_id: string;
@@ -170,6 +177,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           title: string;
           description?: string | null;
           course_id: string;
@@ -183,6 +191,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           title?: string;
           description?: string | null;
           course_id?: string;
@@ -198,6 +207,7 @@ export interface Database {
       deadlines: {
         Row: {
           id: string;
+          user_id?: string | null;
           title: string;
           description: string | null;
           course_id: string;
@@ -213,6 +223,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           title: string;
           description?: string | null;
           course_id: string;
@@ -227,6 +238,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           title?: string;
           description?: string | null;
           course_id?: string;
@@ -243,6 +255,7 @@ export interface Database {
       exams: {
         Row: {
           id: string;
+          user_id?: string | null;
           course_id: string;
           exam_type: ExamType;
           exam_date: string;
@@ -257,6 +270,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           course_id: string;
           exam_type: ExamType;
           exam_date: string;
@@ -270,6 +284,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           course_id?: string;
           exam_type?: ExamType;
           exam_date?: string;
@@ -285,6 +300,7 @@ export interface Database {
       calendar_events: {
         Row: {
           id: string;
+          user_id?: string | null;
           title: string;
           description: string | null;
           course_id: string | null;
@@ -299,6 +315,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           title: string;
           description?: string | null;
           course_id?: string | null;
@@ -312,6 +329,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           title?: string;
           description?: string | null;
           course_id?: string | null;
@@ -327,6 +345,7 @@ export interface Database {
       important_links: {
         Row: {
           id: string;
+          user_id?: string | null;
           title: string;
           description: string | null;
           url: string;
@@ -338,6 +357,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           title: string;
           description?: string | null;
           url: string;
@@ -348,6 +368,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           title?: string;
           description?: string | null;
           url?: string;

@@ -23,6 +23,11 @@ import {
   getFallbackCourses,
 } from '../lib/fallbackData';
 import { SchemaNoticeBanner } from './SchemaNoticeBanner';
+import {
+  uploadUserFile,
+  getSignedFileUrl,
+  deleteStorageFile,
+} from '../lib/storageService';
 
 type Notice = Database['public']['Tables']['notices']['Row'] & {
   courses?: Database['public']['Tables']['courses']['Row'] | null;
@@ -36,6 +41,7 @@ export const NoticesView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSchemaMissing, setIsSchemaMissing] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,6 +142,35 @@ export const NoticesView: React.FC = () => {
     };
   }, [isConfigured]);
 
+  // Generate and cache signed URLs for all notices with attachments in private storage
+  useEffect(() => {
+    let isMounted = true;
+    const resolveSignedUrls = async () => {
+      const urlMap: Record<string, string> = {};
+      for (const notice of notices) {
+        if (notice.attachment_url) {
+          try {
+            const signed = await getSignedFileUrl(notice.attachment_url);
+            if (signed && isMounted) {
+              urlMap[notice.id] = signed;
+            }
+          } catch {}
+        }
+      }
+      if (isMounted && Object.keys(urlMap).length > 0) {
+        setSignedUrls((prev) => ({ ...prev, ...urlMap }));
+      }
+    };
+
+    if (notices.length > 0) {
+      resolveSignedUrls();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [notices]);
+
   const openCreateModal = () => {
     setEditingNotice(null);
     setFormData({
@@ -177,29 +212,27 @@ export const NoticesView: React.FC = () => {
       let attachmentUrl = formData.attachment_url;
       let attachmentName = formData.attachment_name;
 
-      // Handle Storage File Upload if selected
+      // Handle Storage File Upload to 'app-files' bucket (${auth.uid()}/notices/...)
       if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `notices/${fileName}`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from('notice-attachments')
-          .upload(filePath, selectedFile, {
-            cacheControl: '3600',
-            upsert: false,
-          });
-
-        if (uploadErr) {
-          throw new Error(`Storage upload failed: ${uploadErr.message}`);
+        if (!user) {
+          throw new Error('Authentication required: please log in to attach files.');
         }
 
-        const { data: publicUrlData } = supabase.storage
-          .from('notice-attachments')
-          .getPublicUrl(filePath);
+        const uploadResult = await uploadUserFile({
+          file: selectedFile,
+          userId: user.id,
+          featureName: 'notices',
+          itemId: editingNotice?.id,
+          maxSizeMB: 50,
+        });
 
-        attachmentUrl = publicUrlData.publicUrl;
-        attachmentName = selectedFile.name;
+        // If replacing an existing attachment in storage during edit, clean up old file
+        if (editingNotice?.attachment_url && editingNotice.attachment_url !== uploadResult.path) {
+          await deleteStorageFile(editingNotice.attachment_url);
+        }
+
+        attachmentUrl = uploadResult.path;
+        attachmentName = uploadResult.fileName;
       }
 
       const payload = {
@@ -210,6 +243,7 @@ export const NoticesView: React.FC = () => {
         is_pinned: formData.is_pinned,
         attachment_url: attachmentUrl || null,
         attachment_name: attachmentName || null,
+        user_id: user?.id || null,
         created_by: user?.id || null,
         updated_at: new Date().toISOString(),
       };
@@ -353,6 +387,12 @@ export const NoticesView: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this notice?')) return;
+
+    // Find notice and delete attachment file from storage if present
+    const noticeToDelete = notices.find((n) => n.id === id);
+    if (noticeToDelete?.attachment_url) {
+      await deleteStorageFile(noticeToDelete.attachment_url);
+    }
 
     if (isSchemaMissing) {
       const currentList = getFallbackNotices();
@@ -601,10 +641,25 @@ export const NoticesView: React.FC = () => {
                 {notice.attachment_url && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
                     <a
-                      href={notice.attachment_url}
+                      href={signedUrls[notice.id] || '#'}
+                      onClick={async (e) => {
+                        if (!signedUrls[notice.id]) {
+                          e.preventDefault();
+                          try {
+                            const signed = await getSignedFileUrl(notice.attachment_url);
+                            if (signed) {
+                              window.open(signed, '_blank', 'noopener,noreferrer');
+                            } else {
+                              alert('Unable to generate secure download link.');
+                            }
+                          } catch (err: any) {
+                            alert(`Download error: ${err.message}`);
+                          }
+                        }
+                      }}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg font-medium transition-colors"
+                      className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
                     >
                       <FileDown className="w-3.5 h-3.5" />
                       <span>{notice.attachment_name || 'Download Notice Attachment'}</span>
@@ -688,9 +743,16 @@ export const NoticesView: React.FC = () => {
 
               {/* Upload to Supabase Storage */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Attachment (Supabase Storage: notice-attachments)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Attachment (Supabase Storage: app-files)
+                  </label>
+                  {formData.attachment_name && !selectedFile && (
+                    <span className="text-[11px] text-blue-600 font-medium truncate max-w-[200px]">
+                      Current: {formData.attachment_name}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="file"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
