@@ -31,14 +31,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     const checkActiveSession = async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        if (mounted && data.session) {
-          // Real session already exists; redirect to dashboard
+        if (mounted && data.session?.user) {
+          // Real session already exists; redirect to /admin or /dashboard based on role
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.session.user.id)
+            .maybeSingle();
+
+          const role = prof?.role || 'student';
+          const targetUrl = role === 'admin' ? '/admin' : '/dashboard';
+
           if (onLoginSuccess) {
             onLoginSuccess();
-          } else {
-            window.history.pushState(null, '', '/');
-            window.dispatchEvent(new PopStateEvent('popstate'));
           }
+          window.history.pushState(null, '', targetUrl);
+          window.dispatchEvent(new PopStateEvent('popstate'));
         }
       } catch (e) {
         console.error('Session check error on login page:', e);

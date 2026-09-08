@@ -39,10 +39,6 @@ export const ProfileView: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Admin promotion helper for testing
-  const [promoting, setPromoting] = useState(false);
-  const [promoMsg, setPromoMsg] = useState<string | null>(null);
-
   // Sync state when profile is loaded or refreshed
   useEffect(() => {
     if (profile) {
@@ -180,28 +176,6 @@ export const ProfileView: React.FC = () => {
     }
   };
 
-  const handlePromoteToAdmin = async () => {
-    if (!user?.email) return;
-    setPromoting(true);
-    setPromoMsg(null);
-    try {
-      // Call postgres function promote_user_to_admin
-      const { data, error } = await supabase.rpc('promote_user_to_admin', {
-        user_email: user.email,
-      });
-
-      if (error) throw new Error(error.message);
-
-      await refreshProfile();
-      setPromoMsg(`Success: Account ${user.email} has been granted Admin role!`);
-    } catch (err: any) {
-      console.error('Promote error:', err);
-      setPromoMsg(`Notice: ${err.message}. If RPC is unavailable, you can also run UPDATE profiles SET role = 'admin' WHERE email = '${user.email}'; in Supabase SQL editor.`);
-    } finally {
-      setPromoting(false);
-    }
-  };
-
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
@@ -242,28 +216,10 @@ export const ProfileView: React.FC = () => {
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span>{profile?.role || 'student'}</span>
+            <span>{isAdmin ? 'CR / Administrator' : 'Student Account'}</span>
           </div>
-
-          {!isAdmin && (
-            <button
-              onClick={handlePromoteToAdmin}
-              disabled={promoting}
-              className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
-              title="Dev convenience: promote this email to admin"
-            >
-              {promoting ? <Loader2 className="w-3 h-3 animate-spin" /> : <KeyRound className="w-3 h-3 text-amber-600" />}
-              <span>Promote to Admin</span>
-            </button>
-          )}
         </div>
       </div>
-
-      {promoMsg && (
-        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
-          {promoMsg}
-        </div>
-      )}
 
       {/* Main Profile Form */}
       <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">

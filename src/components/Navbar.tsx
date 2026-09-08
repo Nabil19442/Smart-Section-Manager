@@ -27,6 +27,7 @@ interface NavbarProps {
   onToggleMobileMenu?: () => void;
   activeTabTitle?: string;
   onNewNoticeClick?: () => void;
+  onNavigateAdmin?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleMobileMenu,
   activeTabTitle = 'Dashboard Overview',
   onNewNoticeClick,
+  onNavigateAdmin,
 }) => {
   const { user, profile, isAdmin, signOut, isConfigured } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -261,6 +263,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         )}
 
+        {/* CR Admin Switcher button (Visible ONLY to admins) */}
+        {isAdmin && onNavigateAdmin && (
+          <button
+            onClick={onNavigateAdmin}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors"
+            title="Open CR Admin Dashboard"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span>CR Dashboard</span>
+          </button>
+        )}
+
         {/* User Account / Profile Dropdown */}
         {user ? (
           <div className="relative">
@@ -295,6 +309,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {isAdmin ? 'Admin' : 'Student'}
                   </span>
                 </div>
+
+                {isAdmin && onNavigateAdmin && (
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      onNavigateAdmin();
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs text-indigo-700 hover:bg-indigo-50 flex items-center gap-2 font-semibold"
+                  >
+                    <Shield className="w-4 h-4 text-indigo-600" />
+                    <span>CR Admin Dashboard</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => {

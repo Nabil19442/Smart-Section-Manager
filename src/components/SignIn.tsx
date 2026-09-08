@@ -64,13 +64,22 @@ export const SignIn: React.FC<SignInProps> = ({
       }
 
       // Only redirect when a real session exists after login
-      if (res.data?.session) {
+      if (res.data?.session && res.data.user) {
+        // Fetch user profile to redirect based on role
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', res.data.user.id)
+          .maybeSingle();
+
+        const role = prof?.role || 'student';
+        const targetUrl = role === 'admin' ? '/admin' : '/dashboard';
+
         if (onLoginSuccess) {
           onLoginSuccess();
-        } else {
-          window.history.pushState(null, '', '/');
-          window.dispatchEvent(new PopStateEvent('popstate'));
         }
+        window.history.pushState(null, '', targetUrl);
+        window.dispatchEvent(new PopStateEvent('popstate'));
       } else {
         setErrorMsg('Unable to establish an authenticated session. Please verify your account and try again.');
       }

@@ -171,7 +171,9 @@ export const SetupGuideModal: React.FC<SetupGuideModalProps> = ({
                 <p className="text-emerald-400">-- 1. Open Supabase Dashboard &gt; SQL Editor</p>
                 <p className="text-emerald-400">-- 2. Paste contents of /supabase/schema.sql and Click RUN</p>
                 <p className="text-emerald-400">-- 3. Run /supabase/seed.sql to insert sample academic data</p>
-                <p className="text-emerald-400">-- 4. Supabase Storage private bucket: "app-files" with user folder policy (auth.uid()/...)</p>
+                <p className="text-emerald-400">-- 4. Supabase Storage private bucket: "app-files" with RLS policies</p>
+                <p className="text-amber-300">-- 5. PROMOTE CLASS REPRESENTATIVE (CR) TO ADMIN:</p>
+                <p className="text-slate-300 pl-4">UPDATE public.profiles SET role = 'admin' WHERE email = 'YOUR_EMAIL@EXAMPLE.COM';</p>
               </div>
             </div>
           </div>

@@ -15,9 +15,10 @@ import { ProfileView } from './components/ProfileView';
 import { AuthModal } from './components/AuthModal';
 import { SetupGuideModal } from './components/SetupGuideModal';
 import { LoginPage } from './components/LoginPage';
+import { AdminDashboard } from './components/admin/AdminDashboard';
 import { supabase } from './lib/supabaseClient';
 import { getFallbackCounts } from './lib/fallbackData';
-import { Database, Shield, CheckCircle2, AlertTriangle, Layers, BookOpen, Clock, Bell, Loader2 } from 'lucide-react';
+import { Database, Shield, CheckCircle2, AlertTriangle, Layers, BookOpen, Clock, Bell, Loader2, X } from 'lucide-react';
 
 const TAB_TITLES: Record<TabType, string> = {
   notices: 'Notices & Announcements',
@@ -42,6 +43,16 @@ const AppContent: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [accessDeniedNotice, setAccessDeniedNotice] = useState<string | null>(null);
+
+  // Enforce protection for /admin route: students attempting to visit /admin are redirected to /dashboard
+  useEffect(() => {
+    if (hasValidSession && currentPath === '/admin' && !isAdmin) {
+      window.history.replaceState(null, '', '/dashboard');
+      setCurrentPath('/dashboard');
+      setAccessDeniedNotice('Access Denied: You do not have Class Representative (Admin) privileges to view the /admin dashboard.');
+    }
+  }, [hasValidSession, currentPath, isAdmin]);
 
   // Protect private pages with supabase.auth.getSession() — if no session, redirect to /login
   useEffect(() => {
@@ -177,6 +188,18 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Dedicated protected route: /admin (ONLY accessible to role = 'admin')
+  if (currentPath === '/admin' && isAdmin) {
+    return (
+      <AdminDashboard
+        onViewStudentPortal={() => {
+          window.history.pushState(null, '', '/dashboard');
+          setCurrentPath('/dashboard');
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-full bg-[#F1F5F9] font-sans text-[#1E293B] overflow-hidden">
       {/* Left Persistent Dark Sidebar */}
@@ -188,6 +211,10 @@ const AppContent: React.FC = () => {
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenSetupGuide={() => setIsSetupModalOpen(true)}
+        onNavigateAdmin={() => {
+          window.history.pushState(null, '', '/admin');
+          setCurrentPath('/admin');
+        }}
       />
 
       {/* Main App Content Viewport */}
@@ -199,10 +226,30 @@ const AppContent: React.FC = () => {
           onOpenProfile={() => setActiveTab('profile')}
           onOpenSetupGuide={() => setIsSetupModalOpen(true)}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onNavigateAdmin={() => {
+            window.history.pushState(null, '', '/admin');
+            setCurrentPath('/admin');
+          }}
         />
 
         {/* Scrollable Main Area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Access Denied Alert for non-admin students attempting to visit /admin */}
+          {accessDeniedNotice && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs text-rose-900 shadow-sm animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span className="font-semibold">{accessDeniedNotice}</span>
+              </div>
+              <button
+                onClick={() => setAccessDeniedNotice(null)}
+                className="p-1 text-rose-400 hover:text-rose-600 rounded-md transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Top Metric Cards Row matching Professional Polish design */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div

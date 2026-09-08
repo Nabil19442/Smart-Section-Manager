@@ -43,6 +43,7 @@ interface NavigationProps {
   onCloseMobile?: () => void;
   onOpenAuth?: () => void;
   onOpenSetupGuide?: () => void;
+  onNavigateAdmin?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -53,6 +54,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onCloseMobile,
   onOpenAuth,
   onOpenSetupGuide,
+  onNavigateAdmin,
 }) => {
   const { user, profile, isAdmin, signOut } = useAuth();
   const c = counts || {};
@@ -153,6 +155,24 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Navigation Links */}
       <nav className="flex-1 p-3.5 space-y-1 overflow-y-auto">
+        {isAdmin && onNavigateAdmin && (
+          <div className="mb-3">
+            <button
+              onClick={() => {
+                if (onCloseMobile) onCloseMobile();
+                onNavigateAdmin();
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-900/30"
+            >
+              <ShieldCheck className="w-4 h-4 text-indigo-200 shrink-0" />
+              <span className="truncate flex-1">CR Admin Dashboard</span>
+              <span className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] uppercase font-bold tracking-wider">
+                CR
+              </span>
+            </button>
+          </div>
+        )}
+
         <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
           Menu
         </div>
