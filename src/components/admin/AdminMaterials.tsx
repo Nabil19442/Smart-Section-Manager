@@ -14,11 +14,15 @@ import {
   AlertCircle,
   X,
   Loader2,
-  FileText
+  FileText,
+  Database,
+  Code
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { uploadUserFile, deleteStorageFile, getSignedFileUrl } from '../../lib/storageService';
+import { MATERIALS_MIGRATION_SQL, copyToClipboard } from '../../lib/sqlScripts';
+import { isTableMissingError, getFallbackMaterials, getFallbackCourses } from '../../lib/fallbackData';
 
 interface MaterialItem {
   id: string;
@@ -27,6 +31,8 @@ interface MaterialItem {
   material_type: string;
   description: string | null;
   file_url: string;
+  file_name?: string | null;
+  created_by?: string | null;
   created_at: string;
   courses?: {
     course_code: string;
@@ -85,8 +91,10 @@ export const AdminMaterials: React.FC = () => {
   // Copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Toast
+  // Toast & Schema migration alert states
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [schemaMigrationNeeded, setSchemaMigrationNeeded] = useState(false);
+  const [copiedMigration, setCopiedMigration] = useState(false);
 
   const fetchMaterialsAndCourses = async () => {
     setLoading(true);
@@ -95,13 +103,7 @@ export const AdminMaterials: React.FC = () => {
         supabase
           .from('materials')
           .select(`
-            id,
-            title,
-            course_id,
-            material_type,
-            description,
-            file_url,
-            created_at,
+            *,
             courses (
               course_code,
               course_name
@@ -111,11 +113,38 @@ export const AdminMaterials: React.FC = () => {
         supabase.from('courses').select('id, course_code, course_name').order('course_code', { ascending: true }),
       ]);
 
-      if (matRes.data) setMaterials(matRes.data as any[]);
-      if (coursesRes.data) setCourses(coursesRes.data);
+      if (matRes.error) {
+        if (isTableMissingError(matRes.error)) {
+          setMaterials(getFallbackMaterials() as any);
+          setSchemaMigrationNeeded(true);
+        } else {
+          showToast('error', matRes.error.message || 'Failed to fetch study materials.');
+        }
+      } else if (matRes.data) {
+        setMaterials(matRes.data as any[]);
+      }
+
+      if (coursesRes.error) {
+        if (isTableMissingError(coursesRes.error)) {
+          setCourses(
+            getFallbackCourses().map((c) => ({
+              id: c.id,
+              course_code: c.course_code,
+              course_name: c.course_name,
+            }))
+          );
+        }
+      } else if (coursesRes.data) {
+        setCourses(coursesRes.data);
+      }
     } catch (err: any) {
       console.error('Fetch materials error:', err);
-      showToast('error', err.message || 'Failed to fetch study materials.');
+      if (isTableMissingError(err)) {
+        setMaterials(getFallbackMaterials() as any);
+        setSchemaMigrationNeeded(true);
+      } else {
+        showToast('error', err.message || 'Failed to fetch study materials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -127,7 +156,16 @@ export const AdminMaterials: React.FC = () => {
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setStatusMessage({ type, text });
-    setTimeout(() => setStatusMessage(null), 4000);
+    setTimeout(() => setStatusMessage(null), 5000);
+  };
+
+  const handleCopyMigration = async () => {
+    const ok = await copyToClipboard(MATERIALS_MIGRATION_SQL);
+    if (ok) {
+      setCopiedMigration(true);
+      setTimeout(() => setCopiedMigration(false), 3000);
+      showToast('success', 'Migration SQL copied! Run this in Supabase SQL Editor.');
+    }
   };
 
   const openCreateModal = () => {
@@ -170,6 +208,7 @@ export const AdminMaterials: React.FC = () => {
     setSubmitting(true);
     try {
       let finalUrl = formData.file_url.trim();
+      let finalFileName: string | null = null;
 
       // If uploading a new file to app-files
       if (uploadSource === 'file' && selectedFile && user) {
@@ -179,6 +218,7 @@ export const AdminMaterials: React.FC = () => {
           featureName: 'materials',
         });
         finalUrl = uploadRes.path;
+        finalFileName = uploadRes.fileName;
       }
 
       if (!finalUrl) {
@@ -188,29 +228,68 @@ export const AdminMaterials: React.FC = () => {
       }
 
       if (modalMode === 'create') {
-        const { error } = await supabase.from('materials').insert({
-          user_id: user?.id,
-          created_by: user?.id,
+        // Automatically set created_by to the current authenticated admin user's ID
+        const insertPayload: Record<string, any> = {
+          user_id: user?.id || null,
+          created_by: user?.id || null,
           title: formData.title.trim(),
           course_id: formData.course_id,
           material_type: formData.material_type as any,
           description: formData.description.trim() || null,
           file_url: finalUrl,
-        });
+        };
 
-        if (error) throw error;
-        showToast('success', 'Study material uploaded and published successfully!');
+        if (finalFileName || (uploadSource === 'file' && selectedFile?.name)) {
+          insertPayload.file_name = finalFileName || selectedFile?.name;
+        }
+
+        const { error } = await supabase.from('materials').insert(insertPayload);
+
+        if (error) {
+          // If remote database lacks created_by column in schema cache
+          if (
+            error.message?.includes("'created_by'") ||
+            error.message?.includes('schema cache') ||
+            (error as any).code === '42703'
+          ) {
+            console.warn(
+              "Supabase 'materials' table is missing 'created_by' column. Run migration: /supabase/migrations/20260909000001_add_created_by_to_materials.sql"
+            );
+            setSchemaMigrationNeeded(true);
+
+            // Resilient fallback: Retry insert without created_by so admin upload is not blocked
+            const fallbackPayload = { ...insertPayload };
+            delete fallbackPayload.created_by;
+            const retryRes = await supabase.from('materials').insert(fallbackPayload);
+            if (retryRes.error) throw retryRes.error;
+
+            showToast(
+              'success',
+              'Material uploaded! (Note: Run the SQL migration in Supabase to link created_by to your admin account)'
+            );
+          } else {
+            throw error;
+          }
+        } else {
+          showToast('success', 'Study material uploaded and published successfully!');
+        }
       } else if (modalMode === 'edit' && selectedMaterialId) {
+        const updatePayload: Record<string, any> = {
+          title: formData.title.trim(),
+          course_id: formData.course_id,
+          material_type: formData.material_type as any,
+          description: formData.description.trim() || null,
+          file_url: finalUrl,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (finalFileName) {
+          updatePayload.file_name = finalFileName;
+        }
+
         const { error } = await supabase
           .from('materials')
-          .update({
-            title: formData.title.trim(),
-            course_id: formData.course_id,
-            material_type: formData.material_type as any,
-            description: formData.description.trim() || null,
-            file_url: finalUrl,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq('id', selectedMaterialId);
 
         if (error) throw error;
@@ -331,14 +410,47 @@ export const AdminMaterials: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Upload Material</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleCopyMigration}
+            title="Copy SQL migration to add created_by column"
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200"
+          >
+            {copiedMigration ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Code className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{copiedMigration ? 'Copied SQL!' : 'Migration SQL'}</span>
+          </button>
+
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Upload Material</span>
+          </button>
+        </div>
       </div>
+
+      {/* Schema Migration Banner if needed */}
+      {schemaMigrationNeeded && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-start gap-2.5">
+            <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900">Database Schema Migration Recommended</p>
+              <p className="text-amber-700 mt-0.5">
+                The <code className="font-mono font-bold">created_by</code> column is not yet present on <code className="font-mono">public.materials</code> in your Supabase database. Run the migration script in Supabase SQL Editor to enable full admin audit tracking.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCopyMigration}
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-xl flex items-center gap-1.5 shrink-0 self-start sm:self-auto transition-colors"
+          >
+            {copiedMigration ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedMigration ? 'SQL Copied!' : 'Copy Migration SQL'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-3">

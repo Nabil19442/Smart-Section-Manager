@@ -71,6 +71,12 @@ create table if not exists public.materials (
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
+-- Ensure created_by column and index exist even if table was created previously
+alter table public.materials 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+
+create index if not exists idx_materials_created_by on public.materials(created_by);
+
 -- 2.5 DEADLINES TABLE (User-owned assignments, tasks, quizzes, projects)
 create table if not exists public.deadlines (
   id uuid primary key default gen_random_uuid(),
@@ -273,7 +279,7 @@ create policy "Admins can delete notices"
   to authenticated
   using (public.is_admin());
 
--- 3.4 MATERIALS POLICIES (All students can view; only CR/Admin can manage)
+-- 3.4 MATERIALS POLICIES (All students can view; CR/Admin and creators can manage)
 drop policy if exists "Users can view own materials" on public.materials;
 drop policy if exists "All authenticated users can view materials" on public.materials;
 create policy "All authenticated users can view materials"
@@ -286,22 +292,26 @@ drop policy if exists "Admins can insert materials" on public.materials;
 create policy "Admins can insert materials"
   on public.materials for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own materials" on public.materials;
 drop policy if exists "Admins can update materials" on public.materials;
 create policy "Admins can update materials"
   on public.materials for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own materials" on public.materials;
 drop policy if exists "Admins can delete materials" on public.materials;
 create policy "Admins can delete materials"
   on public.materials for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.5 DEADLINES POLICIES (All students can view; only CR/Admin can manage)
 drop policy if exists "Users can view own deadlines" on public.deadlines;

@@ -72,11 +72,20 @@ export async function createItem(tableName, itemData) {
     ...(userId ? { user_id: userId, created_by: userId } : {}),
   };
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from(tableName)
     .insert(payload)
     .select()
     .single();
+
+  if (error && (error.message?.includes("'created_by'") || error.message?.includes('schema cache'))) {
+    console.warn(`Table '${tableName}' missing 'created_by' column in database schema. Retrying without created_by.`);
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.created_by;
+    const retry = await supabase.from(tableName).insert(fallbackPayload).select().single();
+    if (retry.error) throw retry.error;
+    return retry.data;
+  }
 
   if (error) throw error;
   return data;

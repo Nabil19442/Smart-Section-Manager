@@ -271,12 +271,19 @@ export const MaterialsView: React.FC = () => {
       };
 
       if (editingMaterial) {
-        const { error: updateErr } = await supabase
+        let { error: updateErr } = await supabase
           .from('materials')
           .update(payload)
           .eq('id', editingMaterial.id);
 
-        if (updateErr) throw new Error(updateErr.message);
+        if (updateErr && (updateErr.message?.includes("'created_by'") || updateErr.message?.includes('schema cache'))) {
+          const fallbackPayload = { ...payload };
+          delete (fallbackPayload as any).created_by;
+          const retryRes = await supabase.from('materials').update(fallbackPayload).eq('id', editingMaterial.id);
+          if (retryRes.error) throw new Error(retryRes.error.message);
+        } else if (updateErr) {
+          throw new Error(updateErr.message);
+        }
 
         if (user) {
           await supabase.from('activity_logs').insert({
@@ -287,14 +294,22 @@ export const MaterialsView: React.FC = () => {
           });
         }
       } else {
-        const { data: insertData, error: insertErr } = await supabase
+        let insertRes = await supabase
           .from('materials')
           .insert(payload)
           .select()
           .single();
 
-        if (insertErr) throw new Error(insertErr.message);
+        if (insertRes.error && (insertRes.error.message?.includes("'created_by'") || insertRes.error.message?.includes('schema cache'))) {
+          console.warn("Supabase 'materials' table missing 'created_by' column. Retrying with fallback payload.");
+          const fallbackPayload = { ...payload };
+          delete (fallbackPayload as any).created_by;
+          insertRes = await supabase.from('materials').insert(fallbackPayload).select().single();
+        }
 
+        if (insertRes.error) throw new Error(insertRes.error.message);
+
+        const insertData = insertRes.data;
         if (user && insertData) {
           await supabase.from('activity_logs').insert({
             user_id: user.id,
