@@ -29,15 +29,15 @@ interface MaterialItem {
   file_url: string;
   created_at: string;
   courses?: {
-    code: string;
-    name: string;
+    course_code: string;
+    course_name: string;
   } | null;
 }
 
 interface CourseOption {
   id: string;
-  code: string;
-  name: string;
+  course_code: string;
+  course_name: string;
 }
 
 const MATERIAL_TYPES = [
@@ -103,12 +103,12 @@ export const AdminMaterials: React.FC = () => {
             file_url,
             created_at,
             courses (
-              code,
-              name
+              course_code,
+              course_name
             )
           `)
           .order('created_at', { ascending: false }),
-        supabase.from('courses').select('id, code, name').order('code', { ascending: true }),
+        supabase.from('courses').select('id, course_code, course_name').order('course_code', { ascending: true }),
       ]);
 
       if (matRes.data) setMaterials(matRes.data as any[]);
@@ -283,7 +283,7 @@ export const AdminMaterials: React.FC = () => {
     const matchesSearch =
       m.title.toLowerCase().includes(q) ||
       (m.description && m.description.toLowerCase().includes(q)) ||
-      (m.courses && m.courses.code.toLowerCase().includes(q));
+      (m.courses && (m.courses.course_code.toLowerCase().includes(q) || m.courses.course_name.toLowerCase().includes(q)));
 
     const matchesCourse =
       selectedCourseFilter === 'all' || m.course_id === selectedCourseFilter;
@@ -362,7 +362,7 @@ export const AdminMaterials: React.FC = () => {
             <option value="all">All Courses</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.code}
+                {c.course_code} - {c.course_name}
               </option>
             ))}
           </select>
@@ -420,7 +420,7 @@ export const AdminMaterials: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px]">
-                        {item.courses?.code || '—'}
+                        {item.courses?.course_code || '—'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
@@ -530,7 +530,7 @@ export const AdminMaterials: React.FC = () => {
                     <option value="">Select course...</option>
                     {courses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.code}
+                        {c.course_code} - {c.course_name}
                       </option>
                     ))}
                   </select>

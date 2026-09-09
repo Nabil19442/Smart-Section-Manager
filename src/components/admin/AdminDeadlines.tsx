@@ -27,15 +27,15 @@ interface DeadlineItem {
   attachment_url: string | null;
   created_at: string;
   courses?: {
-    code: string;
-    name: string;
+    course_code: string;
+    course_name: string;
   } | null;
 }
 
 interface CourseOption {
   id: string;
-  code: string;
-  name: string;
+  course_code: string;
+  course_name: string;
 }
 
 const DEADLINE_TYPES = [
@@ -97,12 +97,12 @@ export const AdminDeadlines: React.FC = () => {
             attachment_url,
             created_at,
             courses (
-              code,
-              name
+              course_code,
+              course_name
             )
           `)
           .order('due_date', { ascending: true }),
-        supabase.from('courses').select('id, code, name').order('code', { ascending: true }),
+        supabase.from('courses').select('id, course_code, course_name').order('course_code', { ascending: true }),
       ]);
 
       if (deadlinesRes.data) setDeadlines(deadlinesRes.data as any[]);
@@ -235,7 +235,7 @@ export const AdminDeadlines: React.FC = () => {
     const matchesSearch =
       d.title.toLowerCase().includes(q) ||
       (d.description && d.description.toLowerCase().includes(q)) ||
-      (d.courses && d.courses.code.toLowerCase().includes(q));
+      (d.courses && (d.courses.course_code.toLowerCase().includes(q) || d.courses.course_name.toLowerCase().includes(q)));
 
     const matchesCourse =
       selectedCourseFilter === 'all' || d.course_id === selectedCourseFilter;
@@ -311,7 +311,7 @@ export const AdminDeadlines: React.FC = () => {
             <option value="all">All Courses</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.code}
+                {c.course_code} - {c.course_name}
               </option>
             ))}
           </select>
@@ -358,7 +358,7 @@ export const AdminDeadlines: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px]">
-                          {d.courses?.code || '—'}
+                          {d.courses?.course_code || '—'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
@@ -451,7 +451,7 @@ export const AdminDeadlines: React.FC = () => {
                     <option value="">Select course...</option>
                     {courses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.code}
+                        {c.course_code} - {c.course_name}
                       </option>
                     ))}
                   </select>

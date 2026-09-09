@@ -27,15 +27,15 @@ interface ExamItem {
   instructions: string | null;
   created_at: string;
   courses?: {
-    code: string;
-    name: string;
+    course_code: string;
+    course_name: string;
   } | null;
 }
 
 interface CourseOption {
   id: string;
-  code: string;
-  name: string;
+  course_code: string;
+  course_name: string;
 }
 
 const EXAM_TYPES = [
@@ -97,12 +97,12 @@ export const AdminExams: React.FC = () => {
             instructions,
             created_at,
             courses (
-              code,
-              name
+              course_code,
+              course_name
             )
           `)
           .order('exam_date', { ascending: true }),
-        supabase.from('courses').select('id, code, name').order('code', { ascending: true }),
+        supabase.from('courses').select('id, course_code, course_name').order('course_code', { ascending: true }),
       ]);
 
       if (examsRes.data) setExams(examsRes.data as any[]);
@@ -233,8 +233,7 @@ export const AdminExams: React.FC = () => {
   const filteredExams = exams.filter((e) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
-      (e.courses && e.courses.code.toLowerCase().includes(q)) ||
-      (e.courses && e.courses.name.toLowerCase().includes(q)) ||
+      (e.courses && (e.courses.course_code.toLowerCase().includes(q) || e.courses.course_name.toLowerCase().includes(q))) ||
       e.room.toLowerCase().includes(q) ||
       (e.instructions && e.instructions.toLowerCase().includes(q));
 
@@ -312,7 +311,7 @@ export const AdminExams: React.FC = () => {
             <option value="all">All Courses</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.code}
+                {c.course_code} - {c.course_name}
               </option>
             ))}
           </select>
@@ -353,7 +352,7 @@ export const AdminExams: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px]">
-                          {exam.courses?.code || '—'}
+                          {exam.courses?.course_code || '—'}
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold text-[10px] capitalize">
                           {exam.exam_type.replace('_', ' ')}
@@ -431,7 +430,7 @@ export const AdminExams: React.FC = () => {
                     <option value="">Select course...</option>
                     {courses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.code}
+                        {c.course_code} - {c.course_name}
                       </option>
                     ))}
                   </select>
@@ -541,7 +540,7 @@ export const AdminExams: React.FC = () => {
             <div>
               <h3 className="text-base font-bold text-slate-900">Delete Exam Schedule?</h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Are you sure you want to remove the exam entry for <span className="font-semibold text-slate-700">{examToDelete.courses?.code} ({examToDelete.exam_type})</span>?
+                Are you sure you want to remove the exam entry for <span className="font-semibold text-slate-700">{examToDelete.courses?.course_code} ({examToDelete.exam_type})</span>?
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">

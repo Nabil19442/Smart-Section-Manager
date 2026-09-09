@@ -31,15 +31,15 @@ interface NoticeItem {
   attachment_url: string | null;
   created_at: string;
   courses?: {
-    code: string;
-    name: string;
+    course_code: string;
+    course_name: string;
   } | null;
 }
 
 interface CourseOption {
   id: string;
-  code: string;
-  name: string;
+  course_code: string;
+  course_name: string;
 }
 
 export const AdminNotices: React.FC = () => {
@@ -92,13 +92,13 @@ export const AdminNotices: React.FC = () => {
             attachment_url,
             created_at,
             courses (
-              code,
-              name
+              course_code,
+              course_name
             )
           `)
           .order('is_pinned', { ascending: false })
           .order('created_at', { ascending: false }),
-        supabase.from('courses').select('id, code, name').order('code', { ascending: true }),
+        supabase.from('courses').select('id, course_code, course_name').order('course_code', { ascending: true }),
       ]);
 
       if (noticesRes.data) {
@@ -272,7 +272,8 @@ export const AdminNotices: React.FC = () => {
     const matchesQuery =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.courses && item.courses.code.toLowerCase().includes(searchQuery.toLowerCase()));
+      (item.courses && item.courses.course_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.courses && item.courses.course_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCourse =
       selectedCourseFilter === 'all' || item.course_id === selectedCourseFilter;
@@ -353,7 +354,7 @@ export const AdminNotices: React.FC = () => {
             <option value="all">All Courses</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.code} - {c.name}
+                {c.course_code} - {c.course_name}
               </option>
             ))}
           </select>
@@ -431,7 +432,7 @@ export const AdminNotices: React.FC = () => {
                     <td className="py-3.5 px-4">
                       {notice.courses ? (
                         <span className="px-2 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold text-[10px]">
-                          {notice.courses.code}
+                          {notice.courses.course_code}
                         </span>
                       ) : (
                         <span className="text-slate-400 font-medium text-[11px]">General</span>
@@ -540,7 +541,7 @@ export const AdminNotices: React.FC = () => {
                   <option value="">General Section Announcement</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.code} - {c.name}
+                      {c.course_code} - {c.course_name}
                     </option>
                   ))}
                 </select>

@@ -17,8 +17,8 @@ import { useAuth } from '../../context/AuthContext';
 
 interface CourseItem {
   id: string;
-  code: string;
-  name: string;
+  course_code: string;
+  course_name: string;
   teacher_name: string;
   description: string | null;
   created_at: string;
@@ -37,8 +37,8 @@ export const AdminCourses: React.FC = () => {
 
   // Form states
   const [formData, setFormData] = useState({
-    code: '',
-    name: '',
+    course_code: '',
+    course_name: '',
     teacher_name: '',
     description: '',
   });
@@ -58,7 +58,7 @@ export const AdminCourses: React.FC = () => {
       const { data, error } = await supabase
         .from('courses')
         .select('*')
-        .order('code', { ascending: true });
+        .order('course_code', { ascending: true });
 
       if (error) throw error;
       setCourses(data || []);
@@ -83,8 +83,8 @@ export const AdminCourses: React.FC = () => {
     setModalMode('create');
     setSelectedCourseId(null);
     setFormData({
-      code: '',
-      name: '',
+      course_code: '',
+      course_name: '',
       teacher_name: '',
       description: '',
     });
@@ -95,8 +95,8 @@ export const AdminCourses: React.FC = () => {
     setModalMode('edit');
     setSelectedCourseId(course.id);
     setFormData({
-      code: course.code,
-      name: course.name,
+      course_code: course.course_code,
+      course_name: course.course_name,
       teacher_name: course.teacher_name || '',
       description: course.description || '',
     });
@@ -105,7 +105,7 @@ export const AdminCourses: React.FC = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.code.trim() || !formData.name.trim() || !formData.teacher_name.trim()) {
+    if (!formData.course_code.trim() || !formData.course_name.trim() || !formData.teacher_name.trim()) {
       showToast('error', 'Course code, name, and teacher name are required.');
       return;
     }
@@ -115,8 +115,8 @@ export const AdminCourses: React.FC = () => {
       if (modalMode === 'create') {
         const { error } = await supabase.from('courses').insert({
           user_id: user?.id,
-          code: formData.code.trim().toUpperCase(),
-          name: formData.name.trim(),
+          course_code: formData.course_code.trim().toUpperCase(),
+          course_name: formData.course_name.trim(),
           teacher_name: formData.teacher_name.trim(),
           description: formData.description.trim() || null,
         });
@@ -126,8 +126,8 @@ export const AdminCourses: React.FC = () => {
         const { error } = await supabase
           .from('courses')
           .update({
-            code: formData.code.trim().toUpperCase(),
-            name: formData.name.trim(),
+            course_code: formData.course_code.trim().toUpperCase(),
+            course_name: formData.course_name.trim(),
             teacher_name: formData.teacher_name.trim(),
             description: formData.description.trim() || null,
             updated_at: new Date().toISOString(),
@@ -169,8 +169,8 @@ export const AdminCourses: React.FC = () => {
   const filteredCourses = courses.filter((c) => {
     const q = searchQuery.toLowerCase();
     return (
-      c.code.toLowerCase().includes(q) ||
-      c.name.toLowerCase().includes(q) ||
+      c.course_code.toLowerCase().includes(q) ||
+      c.course_name.toLowerCase().includes(q) ||
       (c.teacher_name && c.teacher_name.toLowerCase().includes(q))
     );
   });
@@ -267,11 +267,11 @@ export const AdminCourses: React.FC = () => {
                   <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-4">
                       <span className="font-mono font-bold px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700">
-                        {c.code}
+                        {c.course_code}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900">
-                      {c.name}
+                      {c.course_name}
                     </td>
                     <td className="py-3.5 px-4 text-slate-700 font-medium">
                       <div className="flex items-center gap-1.5">
@@ -334,8 +334,8 @@ export const AdminCourses: React.FC = () => {
                 <input
                   type="text"
                   required
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  value={formData.course_code}
+                  onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
                   placeholder="e.g. CSE 221"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-indigo-600 uppercase"
                 />
@@ -346,8 +346,8 @@ export const AdminCourses: React.FC = () => {
                 <input
                   type="text"
                   required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.course_name}
+                  onChange={(e) => setFormData({ ...formData, course_name: e.target.value })}
                   placeholder="e.g. Algorithms & Data Structures"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-600"
                 />
@@ -408,7 +408,7 @@ export const AdminCourses: React.FC = () => {
             <div>
               <h3 className="text-base font-bold text-slate-900">Delete Course?</h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Are you sure you want to remove <span className="font-semibold text-slate-700">{courseToDelete.code} - {courseToDelete.name}</span>?
+                Are you sure you want to remove <span className="font-semibold text-slate-700">{courseToDelete.course_code} - {courseToDelete.course_name}</span>?
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">

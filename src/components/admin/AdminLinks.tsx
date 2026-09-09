@@ -25,15 +25,15 @@ interface ImportantLinkItem {
   category: string | null;
   created_at: string;
   courses?: {
-    code: string;
-    name: string;
+    course_code: string;
+    course_name: string;
   } | null;
 }
 
 interface CourseOption {
   id: string;
-  code: string;
-  name: string;
+  course_code: string;
+  course_name: string;
 }
 
 export const AdminLinks: React.FC = () => {
@@ -82,12 +82,12 @@ export const AdminLinks: React.FC = () => {
             category,
             created_at,
             courses (
-              code,
-              name
+              course_code,
+              course_name
             )
           `)
           .order('created_at', { ascending: false }),
-        supabase.from('courses').select('id, code, name').order('code', { ascending: true }),
+        supabase.from('courses').select('id, course_code, course_name').order('course_code', { ascending: true }),
       ]);
 
       if (linksRes.data) setLinks(linksRes.data as any[]);
@@ -317,7 +317,7 @@ export const AdminLinks: React.FC = () => {
                     <td className="py-3.5 px-4">
                       {item.courses ? (
                         <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px]">
-                          {item.courses.code}
+                          {item.courses.course_code}
                         </span>
                       ) : (
                         <span className="text-slate-400 font-medium text-[11px]">General Section</span>
@@ -423,7 +423,7 @@ export const AdminLinks: React.FC = () => {
                   <option value="">General Section Bookmark</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.code} - {c.name}
+                      {c.course_code} - {c.course_name}
                     </option>
                   ))}
                 </select>
