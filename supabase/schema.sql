@@ -39,6 +39,10 @@ create table if not exists public.courses (
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
+alter table public.courses 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+create index if not exists idx_courses_created_by on public.courses(created_by);
+
 -- 2.3 NOTICES TABLE (User-owned notes & announcements)
 create table if not exists public.notices (
   id uuid primary key default gen_random_uuid(),
@@ -54,6 +58,10 @@ create table if not exists public.notices (
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
+
+alter table public.notices 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+create index if not exists idx_notices_created_by on public.notices(created_by);
 
 -- 2.4 MATERIALS TABLE (User-owned study resources, PDFs, slides, lecture notes)
 create table if not exists public.materials (
@@ -74,7 +82,6 @@ create table if not exists public.materials (
 -- Ensure created_by column and index exist even if table was created previously
 alter table public.materials 
   add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
-
 create index if not exists idx_materials_created_by on public.materials(created_by);
 
 -- 2.5 DEADLINES TABLE (User-owned assignments, tasks, quizzes, projects)
@@ -94,6 +101,10 @@ create table if not exists public.deadlines (
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
+alter table public.deadlines 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+create index if not exists idx_deadlines_created_by on public.deadlines(created_by);
+
 -- 2.6 EXAMS TABLE (User-owned exam schedules & room locations)
 create table if not exists public.exams (
   id uuid primary key default gen_random_uuid(),
@@ -109,6 +120,10 @@ create table if not exists public.exams (
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
+
+alter table public.exams 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+create index if not exists idx_exams_created_by on public.exams(created_by);
 
 -- 2.7 CALENDAR EVENTS TABLE (User-owned academic events & schedules)
 create table if not exists public.calendar_events (
@@ -126,6 +141,10 @@ create table if not exists public.calendar_events (
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
 
+alter table public.calendar_events 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+create index if not exists idx_calendar_events_created_by on public.calendar_events(created_by);
+
 -- 2.8 IMPORTANT LINKS TABLE (User-owned bookmarks, university portals, drives)
 create table if not exists public.important_links (
   id uuid primary key default gen_random_uuid(),
@@ -138,6 +157,10 @@ create table if not exists public.important_links (
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
+
+alter table public.important_links 
+  add column if not exists created_by uuid references auth.users(id) on delete set null default auth.uid();
+create index if not exists idx_important_links_created_by on public.important_links(created_by);
 
 -- 2.9 ACTIVITY LOGS TABLE (User-owned audit trail of actions)
 create table if not exists public.activity_logs (
@@ -232,22 +255,26 @@ drop policy if exists "Admins can insert courses" on public.courses;
 create policy "Admins can insert courses"
   on public.courses for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own courses" on public.courses;
 drop policy if exists "Admins can update courses" on public.courses;
 create policy "Admins can update courses"
   on public.courses for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own courses" on public.courses;
 drop policy if exists "Admins can delete courses" on public.courses;
 create policy "Admins can delete courses"
   on public.courses for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.3 NOTICES POLICIES (All students can view; only CR/Admin can manage)
 drop policy if exists "Users can view own notices" on public.notices;
@@ -262,22 +289,26 @@ drop policy if exists "Admins can insert notices" on public.notices;
 create policy "Admins can insert notices"
   on public.notices for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own notices" on public.notices;
 drop policy if exists "Admins can update notices" on public.notices;
 create policy "Admins can update notices"
   on public.notices for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own notices" on public.notices;
 drop policy if exists "Admins can delete notices" on public.notices;
 create policy "Admins can delete notices"
   on public.notices for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.4 MATERIALS POLICIES (All students can view; CR/Admin and creators can manage)
 drop policy if exists "Users can view own materials" on public.materials;
@@ -326,22 +357,26 @@ drop policy if exists "Admins can insert deadlines" on public.deadlines;
 create policy "Admins can insert deadlines"
   on public.deadlines for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own deadlines" on public.deadlines;
 drop policy if exists "Admins can update deadlines" on public.deadlines;
 create policy "Admins can update deadlines"
   on public.deadlines for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own deadlines" on public.deadlines;
 drop policy if exists "Admins can delete deadlines" on public.deadlines;
 create policy "Admins can delete deadlines"
   on public.deadlines for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.6 EXAMS POLICIES (All students can view; only CR/Admin can manage)
 drop policy if exists "Users can view own exams" on public.exams;
@@ -356,22 +391,26 @@ drop policy if exists "Admins can insert exams" on public.exams;
 create policy "Admins can insert exams"
   on public.exams for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own exams" on public.exams;
 drop policy if exists "Admins can update exams" on public.exams;
 create policy "Admins can update exams"
   on public.exams for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own exams" on public.exams;
 drop policy if exists "Admins can delete exams" on public.exams;
 create policy "Admins can delete exams"
   on public.exams for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.7 CALENDAR EVENTS POLICIES (All students can view; only CR/Admin can manage)
 drop policy if exists "Users can view own calendar_events" on public.calendar_events;
@@ -386,22 +425,26 @@ drop policy if exists "Admins can insert calendar_events" on public.calendar_eve
 create policy "Admins can insert calendar_events"
   on public.calendar_events for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own calendar_events" on public.calendar_events;
 drop policy if exists "Admins can update calendar_events" on public.calendar_events;
 create policy "Admins can update calendar_events"
   on public.calendar_events for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own calendar_events" on public.calendar_events;
 drop policy if exists "Admins can delete calendar_events" on public.calendar_events;
 create policy "Admins can delete calendar_events"
   on public.calendar_events for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.8 IMPORTANT LINKS POLICIES (All students can view; only CR/Admin can manage)
 drop policy if exists "Users can view own important_links" on public.important_links;
@@ -416,22 +459,26 @@ drop policy if exists "Admins can insert important_links" on public.important_li
 create policy "Admins can insert important_links"
   on public.important_links for insert
   to authenticated
-  with check (public.is_admin());
+  with check (
+    public.is_admin() 
+    or auth.uid() = created_by 
+    or auth.uid() = user_id
+  );
 
 drop policy if exists "Users can update own important_links" on public.important_links;
 drop policy if exists "Admins can update important_links" on public.important_links;
 create policy "Admins can update important_links"
   on public.important_links for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id)
+  with check (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 drop policy if exists "Users can delete own important_links" on public.important_links;
 drop policy if exists "Admins can delete important_links" on public.important_links;
 create policy "Admins can delete important_links"
   on public.important_links for delete
   to authenticated
-  using (public.is_admin());
+  using (public.is_admin() or auth.uid() = created_by or auth.uid() = user_id);
 
 -- 3.9 ACTIVITY LOGS POLICIES (Users can view own logs or admins can view all)
 drop policy if exists "Users can view own activity_logs" on public.activity_logs;

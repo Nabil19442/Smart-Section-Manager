@@ -15,11 +15,15 @@ import {
   X,
   Upload,
   Paperclip,
-  CheckCircle2
+  CheckCircle2,
+  Database,
+  Code,
+  Copy
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, insertWithCreatedByFallback } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { uploadUserFile, deleteStorageFile } from '../../lib/storageService';
+import { ALL_MODULES_MIGRATION_SQL, copyToClipboard } from '../../lib/sqlScripts';
 
 interface NoticeItem {
   id: string;
@@ -73,8 +77,21 @@ export const AdminNotices: React.FC = () => {
   const [noticeToDelete, setNoticeToDelete] = useState<NoticeItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Status message
+  // Status message & schema migration
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [schemaMigrationNeeded, setSchemaMigrationNeeded] = useState(false);
+  const [copiedMigration, setCopiedMigration] = useState(false);
+
+  const handleCopyMigration = async () => {
+    const ok = await copyToClipboard(ALL_MODULES_MIGRATION_SQL);
+    if (ok) {
+      setCopiedMigration(true);
+      showToast('success', 'Migration SQL copied! Paste and run in Supabase SQL Editor.');
+      setTimeout(() => setCopiedMigration(false), 3000);
+    } else {
+      showToast('error', 'Failed to copy SQL to clipboard.');
+    }
+  };
 
   const fetchNoticesAndCourses = async () => {
     setLoading(true);
@@ -196,9 +213,9 @@ export const AdminNotices: React.FC = () => {
       }
 
       if (modalMode === 'create') {
-        const { data, error } = await supabase
-          .from('notices')
-          .insert({
+        const { data, error, fallbackUsed } = await insertWithCreatedByFallback(
+          'notices',
+          {
             user_id: user?.id,
             created_by: user?.id,
             title: formData.title.trim(),
@@ -207,13 +224,20 @@ export const AdminNotices: React.FC = () => {
             is_important: formData.is_important,
             is_pinned: formData.is_pinned,
             attachment_url: finalAttachmentUrl,
-          })
-          .select()
-          .single();
+          }
+        );
 
         if (error) throw error;
 
-        showToast('success', 'Notice published successfully!');
+        if (fallbackUsed) {
+          setSchemaMigrationNeeded(true);
+          showToast(
+            'success',
+            'Notice published! (Note: Run schema migration in Supabase to enable created_by column)'
+          );
+        } else {
+          showToast('success', 'Notice published successfully!');
+        }
       } else if (modalMode === 'edit' && selectedNoticeId) {
         const { error } = await supabase
           .from('notices')
@@ -323,14 +347,47 @@ export const AdminNotices: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Add New Notice</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleCopyMigration}
+            title="Copy SQL migration to add created_by column across all tables"
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200"
+          >
+            {copiedMigration ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Code className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{copiedMigration ? 'Copied SQL!' : 'Migration SQL'}</span>
+          </button>
+
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add New Notice</span>
+          </button>
+        </div>
       </div>
+
+      {/* Schema Migration Banner if needed */}
+      {schemaMigrationNeeded && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-start gap-2.5">
+            <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900">Database Schema Migration Recommended</p>
+              <p className="text-amber-700 mt-0.5">
+                The <code className="font-mono font-bold">created_by</code> column is missing in your Supabase database schema cache. Click below to copy the SQL migration script and run it in your Supabase SQL Editor.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCopyMigration}
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-xl flex items-center gap-1.5 shrink-0 self-start sm:self-auto transition-colors"
+          >
+            {copiedMigration ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedMigration ? 'SQL Copied!' : 'Copy Migration SQL'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-3">

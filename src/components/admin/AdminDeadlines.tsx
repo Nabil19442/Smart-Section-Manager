@@ -11,10 +11,15 @@ import {
   Loader2,
   Calendar,
   Layers,
-  FileText
+  FileText,
+  Database,
+  Code,
+  Copy,
+  Check
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, insertWithCreatedByFallback } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { ALL_MODULES_MIGRATION_SQL, copyToClipboard } from '../../lib/sqlScripts';
 
 interface DeadlineItem {
   id: string;
@@ -77,8 +82,21 @@ export const AdminDeadlines: React.FC = () => {
   const [deadlineToDelete, setDeadlineToDelete] = useState<DeadlineItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Toast
+  // Toast & schema migration
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [schemaMigrationNeeded, setSchemaMigrationNeeded] = useState(false);
+  const [copiedMigration, setCopiedMigration] = useState(false);
+
+  const handleCopyMigration = async () => {
+    const ok = await copyToClipboard(ALL_MODULES_MIGRATION_SQL);
+    if (ok) {
+      setCopiedMigration(true);
+      showToast('success', 'Migration SQL copied! Run in Supabase SQL Editor.');
+      setTimeout(() => setCopiedMigration(false), 3000);
+    } else {
+      showToast('error', 'Failed to copy SQL.');
+    }
+  };
 
   const fetchDeadlinesAndCourses = async () => {
     setLoading(true);
@@ -168,7 +186,7 @@ export const AdminDeadlines: React.FC = () => {
     setSubmitting(true);
     try {
       if (modalMode === 'create') {
-        const { error } = await supabase.from('deadlines').insert({
+        const { error, fallbackUsed } = await insertWithCreatedByFallback('deadlines', {
           user_id: user?.id,
           created_by: user?.id,
           title: formData.title.trim(),
@@ -181,7 +199,16 @@ export const AdminDeadlines: React.FC = () => {
         });
 
         if (error) throw error;
-        showToast('success', 'Academic deadline scheduled successfully!');
+
+        if (fallbackUsed) {
+          setSchemaMigrationNeeded(true);
+          showToast(
+            'success',
+            'Deadline created! (Note: Run schema migration in Supabase to link created_by to your admin account)'
+          );
+        } else {
+          showToast('success', 'Academic deadline scheduled successfully!');
+        }
       } else if (modalMode === 'edit' && selectedDeadlineId) {
         const { error } = await supabase
           .from('deadlines')
@@ -280,14 +307,47 @@ export const AdminDeadlines: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Add New Deadline</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleCopyMigration}
+            title="Copy SQL migration to add created_by column across all tables"
+            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border border-slate-200"
+          >
+            {copiedMigration ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Code className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{copiedMigration ? 'Copied SQL!' : 'Migration SQL'}</span>
+          </button>
+
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add New Deadline</span>
+          </button>
+        </div>
       </div>
+
+      {/* Schema Migration Banner if needed */}
+      {schemaMigrationNeeded && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-start gap-2.5">
+            <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900">Database Schema Migration Recommended</p>
+              <p className="text-amber-700 mt-0.5">
+                The <code className="font-mono font-bold">created_by</code> column is missing in your Supabase database schema cache. Click below to copy the SQL migration script and run it in your Supabase SQL Editor.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCopyMigration}
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-xl flex items-center gap-1.5 shrink-0 self-start sm:self-auto transition-colors"
+          >
+            {copiedMigration ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedMigration ? 'SQL Copied!' : 'Copy Migration SQL'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-3">

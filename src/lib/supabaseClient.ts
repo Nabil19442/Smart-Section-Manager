@@ -76,3 +76,47 @@ export function getSupabaseClient(): SupabaseClient<any> {
 }
 
 export const supabase: SupabaseClient<any> = getSupabaseClient();
+
+/**
+ * Checks if a Supabase PostgREST error is due to a missing 'created_by' column
+ * in the database schema or PostgREST schema cache.
+ */
+export function isMissingCreatedByError(error: any): boolean {
+  if (!error) return false;
+  const msg = (error.message || '').toLowerCase();
+  const details = (error.details || '').toLowerCase();
+  const hint = (error.hint || '').toLowerCase();
+  return (
+    msg.includes("'created_by'") ||
+    msg.includes('created_by') ||
+    msg.includes('schema cache') ||
+    details.includes("'created_by'") ||
+    details.includes('created_by') ||
+    hint.includes('created_by') ||
+    error.code === 'PGRST202' || // PostgREST could not find column in schema cache
+    error.code === '42703'      // PostgreSQL undefined_column
+  );
+}
+
+/**
+ * Inserts a record into a table with created_by. If the column is missing in
+ * the schema cache, transparently retries without created_by so the user's
+ * workflow is never blocked, and flags fallbackUsed = true.
+ */
+export async function insertWithCreatedByFallback(
+  table: string,
+  payload: Record<string, any>,
+  selectQuery: string = '*'
+): Promise<{ data: any; error: any; fallbackUsed: boolean }> {
+  let res = await supabase.from(table).insert(payload).select(selectQuery).single();
+  
+  if (res.error && isMissingCreatedByError(res.error) && 'created_by' in payload) {
+    console.warn(`[Supabase] Table '${table}' missing 'created_by' column in database schema cache. Retrying without 'created_by'.`);
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.created_by;
+    const retryRes = await supabase.from(table).insert(fallbackPayload).select(selectQuery).single();
+    return { data: retryRes.data, error: retryRes.error, fallbackUsed: true };
+  }
+  
+  return { data: res.data, error: res.error, fallbackUsed: false };
+}

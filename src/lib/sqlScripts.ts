@@ -1,10 +1,12 @@
 import schemaRaw from '../../supabase/schema.sql?raw';
 import seedRaw from '../../supabase/seed.sql?raw';
 import materialsMigrationRaw from '../../supabase/migrations/20260909000001_add_created_by_to_materials.sql?raw';
+import allModulesMigrationRaw from '../../supabase/migrations/20260909000002_add_created_by_to_all_modules.sql?raw';
 
 export const SCHEMA_SQL = schemaRaw;
 export const SEED_SQL = seedRaw;
 export const MATERIALS_MIGRATION_SQL = materialsMigrationRaw;
+export const ALL_MODULES_MIGRATION_SQL = allModulesMigrationRaw;
 
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {

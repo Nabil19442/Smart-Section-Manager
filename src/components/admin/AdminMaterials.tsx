@@ -18,10 +18,10 @@ import {
   Database,
   Code
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, insertWithCreatedByFallback } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { uploadUserFile, deleteStorageFile, getSignedFileUrl } from '../../lib/storageService';
-import { MATERIALS_MIGRATION_SQL, copyToClipboard } from '../../lib/sqlScripts';
+import { ALL_MODULES_MIGRATION_SQL, copyToClipboard } from '../../lib/sqlScripts';
 import { isTableMissingError, getFallbackMaterials, getFallbackCourses } from '../../lib/fallbackData';
 
 interface MaterialItem {
@@ -160,7 +160,7 @@ export const AdminMaterials: React.FC = () => {
   };
 
   const handleCopyMigration = async () => {
-    const ok = await copyToClipboard(MATERIALS_MIGRATION_SQL);
+    const ok = await copyToClipboard(ALL_MODULES_MIGRATION_SQL);
     if (ok) {
       setCopiedMigration(true);
       setTimeout(() => setCopiedMigration(false), 3000);
@@ -243,33 +243,16 @@ export const AdminMaterials: React.FC = () => {
           insertPayload.file_name = finalFileName || selectedFile?.name;
         }
 
-        const { error } = await supabase.from('materials').insert(insertPayload);
+        const { error, fallbackUsed } = await insertWithCreatedByFallback('materials', insertPayload);
 
-        if (error) {
-          // If remote database lacks created_by column in schema cache
-          if (
-            error.message?.includes("'created_by'") ||
-            error.message?.includes('schema cache') ||
-            (error as any).code === '42703'
-          ) {
-            console.warn(
-              "Supabase 'materials' table is missing 'created_by' column. Run migration: /supabase/migrations/20260909000001_add_created_by_to_materials.sql"
-            );
-            setSchemaMigrationNeeded(true);
+        if (error) throw error;
 
-            // Resilient fallback: Retry insert without created_by so admin upload is not blocked
-            const fallbackPayload = { ...insertPayload };
-            delete fallbackPayload.created_by;
-            const retryRes = await supabase.from('materials').insert(fallbackPayload);
-            if (retryRes.error) throw retryRes.error;
-
-            showToast(
-              'success',
-              'Material uploaded! (Note: Run the SQL migration in Supabase to link created_by to your admin account)'
-            );
-          } else {
-            throw error;
-          }
+        if (fallbackUsed) {
+          setSchemaMigrationNeeded(true);
+          showToast(
+            'success',
+            'Material uploaded! (Note: Run the SQL migration in Supabase to link created_by to your admin account)'
+          );
         } else {
           showToast('success', 'Study material uploaded and published successfully!');
         }
