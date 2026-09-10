@@ -570,10 +570,10 @@ export const NoticesView: React.FC = () => {
             return (
               <article
                 key={notice.id}
-                className={`p-5 rounded-xl border bg-white shadow-sm transition-all hover:border-slate-300 ${
+                className={`p-5 rounded-2xl border shadow-xs transition-all hover:shadow-md hover:border-indigo-200 ${
                   notice.is_pinned
-                    ? 'border-l-4 border-l-blue-600 border-slate-200'
-                    : 'border-slate-200'
+                    ? 'border-indigo-200/90 bg-indigo-50/15'
+                    : 'border-slate-200/90 bg-white'
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">

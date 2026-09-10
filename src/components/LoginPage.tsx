@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { SignIn } from './SignIn';
@@ -9,15 +10,17 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
   // Read initial query params if user was redirected from signup or bookmarked
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState<string>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('email') || '';
+    return searchParams.get('email') || '';
   });
   const [successNotice, setSuccessNotice] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('signup') === 'success') {
+    if (searchParams.get('signup') === 'success') {
       return 'Your account has been created. Please check your email and verify your address before logging in.';
     }
     return null;
@@ -25,7 +28,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // Check if session already exists on mount — if so, redirect immediately to dashboard
+  // Check if session already exists on mount — if so, redirect immediately
   useEffect(() => {
     let mounted = true;
     const checkActiveSession = async () => {
@@ -39,14 +42,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             .eq('id', data.session.user.id)
             .maybeSingle();
 
-          const role = prof?.role || 'student';
-          const targetUrl = role === 'admin' ? '/admin' : '/dashboard';
+          const role = prof?.role || (data.session.user.user_metadata?.role as string) || 'student';
+          const redirectParam = searchParams.get('redirect') || (location.state as any)?.from?.pathname;
+          let targetUrl = redirectParam || (role === 'admin' ? '/admin' : '/dashboard');
+
+          if (role !== 'admin' && targetUrl.startsWith('/admin')) {
+            targetUrl = '/dashboard';
+          }
 
           if (onLoginSuccess) {
             onLoginSuccess();
           }
-          window.history.pushState(null, '', targetUrl);
-          window.dispatchEvent(new PopStateEvent('popstate'));
+          navigate(targetUrl, { replace: true });
         }
       } catch (e) {
         console.error('Session check error on login page:', e);
@@ -59,7 +66,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     return () => {
       mounted = false;
     };
-  }, [onLoginSuccess]);
+  }, [onLoginSuccess, navigate, searchParams, location.state]);
 
   // Handler called when user completes Sign Up successfully
   const handleSignUpSuccess = (registeredEmail: string) => {
@@ -74,11 +81,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setMode('signin');
 
     // Update query params in the URL for bookmark/refresh persistence
-    const url = new URL(window.location.href);
-    url.pathname = '/login';
-    url.searchParams.set('signup', 'success');
-    url.searchParams.set('email', registeredEmail);
-    window.history.replaceState(null, '', url.toString());
+    const currentRedirect = searchParams.get('redirect');
+    const newParams = new URLSearchParams();
+    newParams.set('signup', 'success');
+    newParams.set('email', registeredEmail);
+    if (currentRedirect) {
+      newParams.set('redirect', currentRedirect);
+    }
+    navigate(`/login?${newParams.toString()}`, { replace: true });
   };
 
   if (checkingSession) {

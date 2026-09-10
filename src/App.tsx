@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navbar } from './components/Navbar';
 import { Navigation, TabType } from './components/Navigation';
 import { NoticesView } from './components/NoticesView';
@@ -16,9 +18,11 @@ import { AuthModal } from './components/AuthModal';
 import { SetupGuideModal } from './components/SetupGuideModal';
 import { LoginPage } from './components/LoginPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { Footer } from './components/Footer';
+import { DashboardHighlights } from './components/DashboardHighlights';
 import { supabase } from './lib/supabaseClient';
 import { getFallbackCounts } from './lib/fallbackData';
-import { Database, Shield, CheckCircle2, AlertTriangle, Layers, BookOpen, Clock, Bell, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Layers, BookOpen, Clock, Bell, Loader2, X } from 'lucide-react';
 
 const TAB_TITLES: Record<TabType, string> = {
   notices: 'Notices & Announcements',
@@ -33,98 +37,47 @@ const TAB_TITLES: Record<TabType, string> = {
   profile: 'Student Profile & Settings',
 };
 
-const AppContent: React.FC = () => {
-  const { isConfigured, isAdmin } = useAuth();
-  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
-  const [isVerifyingSession, setIsVerifyingSession] = useState<boolean>(true);
-  const [hasValidSession, setHasValidSession] = useState<boolean>(false);
+interface StudentPortalLayoutProps {
+  defaultTab?: TabType;
+}
 
-  const [activeTab, setActiveTab] = useState<TabType>('notices');
+export const StudentPortalLayout: React.FC<StudentPortalLayoutProps> = ({ defaultTab }) => {
+  const { isConfigured, isAdmin, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Tab resolution: priority goes to prop, then URL path inspection, then default 'notices'
+  const activeTab: TabType = useMemo(() => {
+    if (defaultTab) return defaultTab;
+    const path = location.pathname.replace(/^\//, '').toLowerCase();
+    if (path === 'dashboard' || path === '') return 'notices';
+    if (path === 'materials') return 'materials';
+    if (path === 'deadlines') return 'deadlines';
+    if (path === 'exams') return 'exams';
+    if (path.startsWith('courses')) return 'courses';
+    if (path === 'calendar') return 'calendar';
+    if (path === 'links') return 'links';
+    if (path === 'test-suite' || path === 'test_suite') return 'test_suite';
+    if (path === 'activity-logs' || path === 'activity_logs') return 'activity_logs';
+    if (path === 'profile') return 'profile';
+    return 'notices';
+  }, [defaultTab, location.pathname]);
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [accessDeniedNotice, setAccessDeniedNotice] = useState<string | null>(null);
 
-  // Enforce protection for /admin route: students attempting to visit /admin are redirected to /dashboard
-  useEffect(() => {
-    if (hasValidSession && currentPath === '/admin' && !isAdmin) {
-      window.history.replaceState(null, '', '/dashboard');
-      setCurrentPath('/dashboard');
-      setAccessDeniedNotice('Access Denied: You do not have Class Representative (Admin) privileges to view the /admin dashboard.');
+  // Check for access denied banner passed via location state or query params
+  const [accessDeniedNotice, setAccessDeniedNotice] = useState<string | null>(() => {
+    if ((location.state as any)?.accessDenied) {
+      return (location.state as any).accessDenied;
     }
-  }, [hasValidSession, currentPath, isAdmin]);
-
-  // Protect private pages with supabase.auth.getSession() — if no session, redirect to /login
-  useEffect(() => {
-    let isMounted = true;
-
-    const verifySession = async (path: string) => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const active = Boolean(data?.session);
-        if (!isMounted) return;
-
-        setHasValidSession(active);
-
-        // If no session exists, protect private pages by redirecting to /login
-        if (!active) {
-          if (path !== '/login') {
-            window.history.replaceState(null, '', '/login');
-            setCurrentPath('/login');
-          }
-        } else {
-          // If a real session already exists and user visits /login, redirect to dashboard /
-          if (path === '/login') {
-            window.history.replaceState(null, '', '/');
-            setCurrentPath('/');
-          }
-        }
-      } catch (err) {
-        console.error('Error verifying session with supabase.auth.getSession():', err);
-        if (!isMounted) return;
-        setHasValidSession(false);
-        if (path !== '/login') {
-          window.history.replaceState(null, '', '/login');
-          setCurrentPath('/login');
-        }
-      } finally {
-        if (isMounted) setIsVerifyingSession(false);
-      }
-    };
-
-    const initialPath = window.location.pathname || '/';
-    verifySession(initialPath);
-
-    const handlePopState = () => {
-      const path = window.location.pathname || '/';
-      setCurrentPath(path);
-      verifySession(path);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    // Synchronize on auth changes (logout, login, session expiry)
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-      const active = Boolean(session);
-      setHasValidSession(active);
-      const path = window.location.pathname || '/';
-
-      if (!active && path !== '/login') {
-        window.history.replaceState(null, '', '/login');
-        setCurrentPath('/login');
-      } else if (active && path === '/login') {
-        window.history.replaceState(null, '', '/');
-        setCurrentPath('/');
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener('popstate', handlePopState);
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+    if (searchParams.get('denied') === 'admin') {
+      return 'Access Denied: You do not have Class Representative (Admin) privileges to view the /admin dashboard.';
+    }
+    return null;
+  });
 
   const [counts, setCounts] = useState<{
     notices?: number;
@@ -160,61 +113,61 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
-    if (hasValidSession) {
+    if (user) {
       fetchCounts();
     }
-  }, [isConfigured, activeTab, hasValidSession]);
+  }, [isConfigured, activeTab, user]);
 
-  // Loading state while verifying auth session with supabase.auth.getSession()
-  if (isVerifyingSession) {
-    return (
-      <div className="h-screen w-full bg-[#0F172A] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-        <p className="text-xs font-semibold text-slate-400">Verifying authentication session...</p>
-      </div>
-    );
-  }
-
-  // If no session exists or user navigated to /login, show LoginPage
-  if (!hasValidSession || currentPath === '/login') {
-    return (
-      <LoginPage
-        onLoginSuccess={() => {
-          setHasValidSession(true);
-          window.history.pushState(null, '', '/');
-          setCurrentPath('/');
-        }}
-      />
-    );
-  }
-
-  // Dedicated protected route: /admin (ONLY accessible to role = 'admin')
-  if (currentPath === '/admin' && isAdmin) {
-    return (
-      <AdminDashboard
-        onViewStudentPortal={() => {
-          window.history.pushState(null, '', '/dashboard');
-          setCurrentPath('/dashboard');
-        }}
-      />
-    );
-  }
+  const handleTabChange = (tab: TabType) => {
+    setIsMobileMenuOpen(false);
+    switch (tab) {
+      case 'notices':
+        navigate('/notices');
+        break;
+      case 'materials':
+        navigate('/materials');
+        break;
+      case 'deadlines':
+        navigate('/deadlines');
+        break;
+      case 'exams':
+        navigate('/exams');
+        break;
+      case 'courses':
+        navigate('/courses');
+        break;
+      case 'calendar':
+        navigate('/calendar');
+        break;
+      case 'links':
+        navigate('/links');
+        break;
+      case 'test_suite':
+        navigate('/test-suite');
+        break;
+      case 'activity_logs':
+        navigate('/activity-logs');
+        break;
+      case 'profile':
+        navigate('/profile');
+        break;
+      default:
+        navigate('/dashboard');
+    }
+  };
 
   return (
     <div className="flex h-screen w-full bg-[#F1F5F9] font-sans text-[#1E293B] overflow-hidden">
       {/* Left Persistent Dark Sidebar */}
       <Navigation
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         counts={counts}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenSetupGuide={() => setIsSetupModalOpen(true)}
-        onNavigateAdmin={() => {
-          window.history.pushState(null, '', '/admin');
-          setCurrentPath('/admin');
-        }}
+        onNavigateAdmin={() => navigate('/admin')}
       />
 
       {/* Main App Content Viewport */}
@@ -223,13 +176,10 @@ const AppContent: React.FC = () => {
         <Navbar
           activeTabTitle={TAB_TITLES[activeTab]}
           onOpenAuth={() => setIsAuthModalOpen(true)}
-          onOpenProfile={() => setActiveTab('profile')}
+          onOpenProfile={() => handleTabChange('profile')}
           onOpenSetupGuide={() => setIsSetupModalOpen(true)}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          onNavigateAdmin={() => {
-            window.history.pushState(null, '', '/admin');
-            setCurrentPath('/admin');
-          }}
+          onNavigateAdmin={() => navigate('/admin')}
         />
 
         {/* Scrollable Main Area */}
@@ -244,6 +194,7 @@ const AppContent: React.FC = () => {
               <button
                 onClick={() => setAccessDeniedNotice(null)}
                 className="p-1 text-rose-400 hover:text-rose-600 rounded-md transition-colors"
+                title="Dismiss"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -251,82 +202,95 @@ const AppContent: React.FC = () => {
           )}
 
           {/* Top Metric Cards Row matching Professional Polish design */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div
-              onClick={() => setActiveTab('courses')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+              onClick={() => handleTabChange('courses')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Active Courses
                 </p>
-                <Layers className="w-4 h-4 text-blue-500" />
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Layers className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">
+              <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 tracking-tight">
                 {counts.courses ?? '—'}
               </h3>
               <div className="mt-3 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="bg-blue-500 h-full w-3/4" />
+                <div className="bg-indigo-600 h-full w-3/4 rounded-full" />
               </div>
             </div>
 
             <div
-              onClick={() => setActiveTab('notices')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+              onClick={() => handleTabChange('notices')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Recent Notices
                 </p>
-                <Bell className="w-4 h-4 text-orange-500" />
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Bell className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-orange-600 mt-1">
+              <h3 className="text-2xl sm:text-3xl font-bold text-amber-600 mt-2 tracking-tight">
                 {counts.notices !== undefined ? String(counts.notices).padStart(2, '0') : '—'}
               </h3>
-              <p className="text-[11px] text-slate-400 mt-2 font-medium flex items-center gap-1">
-                <span>Realtime announcements</span>
+              <p className="text-[11px] text-slate-400 mt-2 font-medium truncate">
+                Realtime announcements
               </p>
             </div>
 
             <div
-              onClick={() => setActiveTab('deadlines')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+              onClick={() => handleTabChange('deadlines')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   New Deadlines
                 </p>
-                <Clock className="w-4 h-4 text-red-500" />
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Clock className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-red-600 mt-1">
+              <h3 className="text-2xl sm:text-3xl font-bold text-rose-600 mt-2 tracking-tight">
                 {counts.deadlines !== undefined ? String(counts.deadlines).padStart(2, '0') : '—'}
               </h3>
-              <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                Assignments & submissions
+              <p className="text-[11px] text-slate-400 mt-2 font-medium truncate">
+                Assignments & tasks
               </p>
             </div>
 
             <div
-              onClick={() => setActiveTab('materials')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+              onClick={() => handleTabChange('materials')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Materials Uploaded
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Study Materials
                 </p>
-                <BookOpen className="w-4 h-4 text-emerald-500" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <BookOpen className="w-4 h-4" />
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1">
+              <h3 className="text-2xl sm:text-3xl font-bold text-emerald-600 mt-2 tracking-tight">
                 {counts.materials ?? '—'}
               </h3>
-              <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                Supabase Storage: Active
+              <p className="text-[11px] text-slate-400 mt-2 font-medium truncate">
+                Cloud documents active
               </p>
             </div>
           </div>
 
+          {/* Student Dashboard Highlights (Notices, Deadlines, Exams, Materials, What's New) */}
+          {activeTab === 'notices' && (
+            <DashboardHighlights onNavigateTab={handleTabChange} />
+          )}
+
           {/* Active View */}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {activeTab === 'notices' && <NoticesView />}
             {activeTab === 'materials' && <MaterialsView />}
             {activeTab === 'deadlines' && <DeadlinesView />}
@@ -338,6 +302,9 @@ const AppContent: React.FC = () => {
             {activeTab === 'activity_logs' && <ActivityLogsView />}
             {activeTab === 'profile' && <ProfileView />}
           </div>
+
+          {/* Student Portal Modern Footer */}
+          <Footer variant="student" />
         </main>
       </div>
 
@@ -354,10 +321,178 @@ const AppContent: React.FC = () => {
   );
 };
 
+// Catch-all route component to cleanly redirect based on authentication and role
+const CatchAllRoute: React.FC = () => {
+  const { user, isAdmin, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full bg-[#0F172A] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <p className="text-xs font-semibold text-slate-400">Verifying session...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />;
+};
+
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <BrowserRouter>
+        <Routes>
+          {/* Public Login Route */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/:tab"
+            element={
+              <ProtectedRoute requireAdmin>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Student Portal Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="notices" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="notices" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notices"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="notices" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/materials"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="materials" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/deadlines"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="deadlines" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exams"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="exams" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courses"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="courses" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courses/:id"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="courses" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="calendar" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/links"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="links" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/test-suite"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="test_suite" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/test_suite"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="test_suite" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activity-logs"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="activity_logs" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activity_logs"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="activity_logs" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <StudentPortalLayout defaultTab="profile" />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all fallback */}
+          <Route path="*" element={<CatchAllRoute />} />
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

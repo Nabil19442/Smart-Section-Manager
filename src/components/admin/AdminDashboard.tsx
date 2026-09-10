@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   LayoutDashboard,
   Bell,
@@ -31,6 +32,7 @@ import { AdminLinks } from './AdminLinks';
 import { AdminStudents } from './AdminStudents';
 import { AdminNotifications } from './AdminNotifications';
 import { AdminSettings } from './AdminSettings';
+import { Footer } from '../Footer';
 
 export type AdminTabType =
   | 'overview'
@@ -46,37 +48,15 @@ export type AdminTabType =
   | 'settings';
 
 interface AdminDashboardProps {
-  onViewStudentPortal: () => void;
+  onViewStudentPortal?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPortal }) => {
   const { user, profile, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<AdminTabType>('overview');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { tab } = useParams<{ tab?: string }>();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
-  // Quick Action trigger helper
-  const handleQuickAction = (action: 'notice' | 'material' | 'deadline' | 'exam' | 'course' | 'event') => {
-    switch (action) {
-      case 'notice':
-        setActiveTab('notices');
-        break;
-      case 'material':
-        setActiveTab('materials');
-        break;
-      case 'deadline':
-        setActiveTab('deadlines');
-        break;
-      case 'exam':
-        setActiveTab('exams');
-        break;
-      case 'course':
-        setActiveTab('courses');
-        break;
-      case 'event':
-        setActiveTab('calendar');
-        break;
-    }
-  };
 
   const navItems = [
     { id: 'overview' as AdminTabType, label: 'Overview', icon: LayoutDashboard },
@@ -91,6 +71,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
     { id: 'notifications' as AdminTabType, label: 'Broadcast Alerts', icon: Radio },
     { id: 'settings' as AdminTabType, label: 'Settings & Security', icon: Settings },
   ];
+
+  // Derive activeTab from URL params or pathname to support direct access and refresh
+  const activeTab: AdminTabType = useMemo(() => {
+    const validIds = navItems.map((item) => item.id);
+    if (tab && validIds.includes(tab as AdminTabType)) {
+      return tab as AdminTabType;
+    }
+    const pathParts = location.pathname.split('/').filter(Boolean);
+    if (pathParts[0] === 'admin' && pathParts[1] && validIds.includes(pathParts[1] as AdminTabType)) {
+      return pathParts[1] as AdminTabType;
+    }
+    return 'overview';
+  }, [tab, location.pathname]);
+
+  const handleNavigateTab = (targetTab: AdminTabType) => {
+    setMobileSidebarOpen(false);
+    if (targetTab === 'overview') {
+      navigate('/admin');
+    } else {
+      navigate(`/admin/${targetTab}`);
+    }
+  };
+
+  const handleSwitchToStudentPortal = () => {
+    if (onViewStudentPortal) {
+      onViewStudentPortal();
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  // Quick Action trigger helper
+  const handleQuickAction = (action: 'notice' | 'material' | 'deadline' | 'exam' | 'course' | 'event') => {
+    switch (action) {
+      case 'notice':
+        handleNavigateTab('notices');
+        break;
+      case 'material':
+        handleNavigateTab('materials');
+        break;
+      case 'deadline':
+        handleNavigateTab('deadlines');
+        break;
+      case 'exam':
+        handleNavigateTab('exams');
+        break;
+      case 'course':
+        handleNavigateTab('courses');
+        break;
+      case 'event':
+        handleNavigateTab('calendar');
+        break;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-900">
@@ -107,18 +141,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
             </button>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-600/30">
-                <Shield className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-sm shadow-indigo-600/30 font-bold text-sm">
+                S
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold tracking-tight text-white">CR Admin Portal</h1>
+                  <h1 className="text-base font-bold tracking-tight text-white">SectionHub</h1>
                   <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
-                    Sec {profile?.section || 'A'}
+                    CR Admin • Sec {profile?.section || 'A'}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 hidden sm:block">
-                  Class Representative Academic Management System
+                  Smart Academic Management Platform
                 </p>
               </div>
             </div>
@@ -180,7 +214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => handleNavigateTab(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                     isActive
                       ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
@@ -198,7 +232,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
 
             <div className="pt-3 mt-3 border-t border-slate-100">
               <button
-                onClick={onViewStudentPortal}
+                onClick={handleSwitchToStudentPortal}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50/60 hover:bg-indigo-50 transition-colors"
               >
                 <ArrowUpRight className="w-4 h-4 text-indigo-600" />
@@ -233,10 +267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
                     return (
                       <button
                         key={item.id}
-                        onClick={() => {
-                          setActiveTab(item.id);
-                          setMobileSidebarOpen(false);
-                        }}
+                        onClick={() => handleNavigateTab(item.id)}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                           isActive
                             ? 'bg-indigo-600 text-white'
@@ -253,10 +284,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
 
               <div className="pt-4 border-t border-slate-100 space-y-2">
                 <button
-                  onClick={() => {
-                    setMobileSidebarOpen(false);
-                    onViewStudentPortal();
-                  }}
+                  onClick={handleSwitchToStudentPortal}
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-semibold"
                 >
                   <ArrowUpRight className="w-4 h-4" />
@@ -275,23 +303,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
         )}
 
         {/* Dynamic Content Pane */}
-        <main className="flex-1 min-w-0">
-          {activeTab === 'overview' && (
-            <AdminOverview
-              onNavigateTab={(tab) => setActiveTab(tab)}
-              onOpenQuickAction={handleQuickAction}
-            />
-          )}
-          {activeTab === 'notices' && <AdminNotices />}
-          {activeTab === 'courses' && <AdminCourses />}
-          {activeTab === 'materials' && <AdminMaterials />}
-          {activeTab === 'deadlines' && <AdminDeadlines />}
-          {activeTab === 'exams' && <AdminExams />}
-          {activeTab === 'calendar' && <AdminCalendar />}
-          {activeTab === 'links' && <AdminLinks />}
-          {activeTab === 'students' && <AdminStudents />}
-          {activeTab === 'notifications' && <AdminNotifications />}
-          {activeTab === 'settings' && <AdminSettings />}
+        <main className="flex-1 min-w-0 flex flex-col justify-between space-y-4">
+          {/* Subtle Top Breadcrumb & Live Status */}
+          <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <button
+                onClick={() => handleNavigateTab('overview')}
+                className="hover:text-indigo-600 transition-colors"
+              >
+                CR Management
+              </button>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-900 font-semibold capitalize">
+                {activeTab === 'overview' ? 'Overview & Metrics' : activeTab}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200/70">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Live Sync Active
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            {activeTab === 'overview' && (
+              <AdminOverview
+                onNavigateTab={handleNavigateTab}
+                onOpenQuickAction={handleQuickAction}
+              />
+            )}
+            {activeTab === 'notices' && <AdminNotices />}
+            {activeTab === 'courses' && <AdminCourses />}
+            {activeTab === 'materials' && <AdminMaterials />}
+            {activeTab === 'deadlines' && <AdminDeadlines />}
+            {activeTab === 'exams' && <AdminExams />}
+            {activeTab === 'calendar' && <AdminCalendar />}
+            {activeTab === 'links' && <AdminLinks />}
+            {activeTab === 'students' && <AdminStudents />}
+            {activeTab === 'notifications' && <AdminNotifications />}
+            {activeTab === 'settings' && <AdminSettings />}
+          </div>
+          <Footer variant="admin" />
         </main>
       </div>
     </div>

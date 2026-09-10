@@ -128,25 +128,23 @@ export const Navigation: React.FC<NavigationProps> = ({
   };
 
   const content = (
-    <div className="flex flex-col h-full bg-[#0F172A] text-white">
+    <div className="flex flex-col h-full bg-[#0B132B] text-white select-none">
       {/* Brand Header */}
-      <div className="p-5 flex items-center justify-between border-b border-[#1E293B]">
+      <div className="p-5 flex items-center justify-between border-b border-slate-800/80">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-lg text-white shadow-sm">
+          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center font-bold text-lg text-white shadow-sm shadow-indigo-950/40">
             S
           </div>
           <div>
-            <span className="text-base font-bold tracking-tight text-white">Smart Section</span>
-            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 font-mono font-medium">
-              Manager
-            </span>
+            <span className="text-base font-bold tracking-tight text-white">SectionHub</span>
+            <p className="text-[11px] text-indigo-300/80 font-medium">Smart Academic Platform</p>
           </div>
         </div>
 
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="md:hidden text-slate-400 hover:text-white p-1"
+            className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -154,7 +152,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 p-3.5 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto">
         {isAdmin && onNavigateAdmin && (
           <div className="mb-3">
             <button
@@ -162,7 +160,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 if (onCloseMobile) onCloseMobile();
                 onNavigateAdmin();
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-900/30"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-950/30"
             >
               <ShieldCheck className="w-4 h-4 text-indigo-200 shrink-0" />
               <span className="truncate flex-1">CR Admin Dashboard</span>
@@ -173,7 +171,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
         )}
 
-        <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="px-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           Menu
         </div>
         {tabs.map((tab) => {
@@ -184,10 +182,10 @@ export const Navigation: React.FC<NavigationProps> = ({
               key={tab.id}
               id={`tab-${tab.id}`}
               onClick={() => handleSelectTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
                 isActive
-                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                  : 'text-slate-300 hover:bg-[#1E293B] hover:text-white'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm shadow-indigo-900/40 translate-x-0.5'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
               }`}
             >
               <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
@@ -196,7 +194,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                     isActive
-                      ? 'bg-blue-700 text-white'
+                      ? 'bg-indigo-800 text-indigo-100'
                       : 'bg-slate-800 text-slate-300'
                   }`}
                 >
@@ -207,7 +205,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <span
                   className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
                     isActive
-                      ? 'bg-blue-800 text-blue-100'
+                      ? 'bg-indigo-800 text-indigo-100'
                       : 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/50'
                   }`}
                 >

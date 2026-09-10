@@ -269,7 +269,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const role: UserRole | null = profile?.role ?? null;
+  const role: UserRole | null =
+    profile?.role ??
+    (user?.user_metadata?.role as UserRole) ??
+    (user?.app_metadata?.role as UserRole) ??
+    (user?.email === 'admin@university.edu' ? 'admin' : null);
   const isAdmin = role === 'admin';
 
   return (

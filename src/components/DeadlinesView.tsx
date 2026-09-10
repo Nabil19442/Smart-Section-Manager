@@ -291,28 +291,28 @@ export const DeadlinesView: React.FC = () => {
     if (diffMs < 0) {
       return {
         label: 'Overdue',
-        badgeClass: 'bg-red-50 text-red-700 border-red-200 font-bold',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 font-bold',
         isOverdue: true,
         diffDays,
       };
     } else if (diffHours <= 24) {
       return {
-        label: `Due in ${diffHours} hour${diffHours === 1 ? '' : 's'}`,
-        badgeClass: 'bg-amber-50 text-amber-800 border-amber-200 font-bold animate-pulse',
+        label: `Due in ${diffHours}h`,
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 font-bold',
         isOverdue: false,
         diffDays,
       };
     } else if (diffDays <= 3) {
       return {
         label: `Due in ${diffDays} days`,
-        badgeClass: 'bg-orange-50 text-orange-800 border-orange-200 font-bold',
+        badgeClass: 'bg-amber-50 text-amber-800 border-amber-200/90 font-bold',
         isOverdue: false,
         diffDays,
       };
     } else {
       return {
         label: `${diffDays} days left`,
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 font-semibold',
         isOverdue: false,
         diffDays,
       };
@@ -501,7 +501,7 @@ export const DeadlinesView: React.FC = () => {
             return (
               <div
                 key={deadline.id}
-                className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="space-y-1.5 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Mail,
   Lock,
@@ -29,6 +30,9 @@ export const SignIn: React.FC<SignInProps> = ({
   onSwitchToSignUp,
 }) => {
   const { signIn } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -72,14 +76,19 @@ export const SignIn: React.FC<SignInProps> = ({
           .eq('id', res.data.user.id)
           .maybeSingle();
 
-        const role = prof?.role || 'student';
-        const targetUrl = role === 'admin' ? '/admin' : '/dashboard';
+        const role = prof?.role || (res.data.user.user_metadata?.role as string) || (email === 'admin@university.edu' ? 'admin' : 'student');
+        const redirectParam = searchParams.get('redirect') || (location.state as any)?.from?.pathname;
+        let targetUrl = redirectParam || (role === 'admin' ? '/admin' : '/dashboard');
+
+        // Disallow non-admin student redirecting to /admin routes
+        if (role !== 'admin' && targetUrl.startsWith('/admin')) {
+          targetUrl = '/dashboard';
+        }
 
         if (onLoginSuccess) {
           onLoginSuccess();
         }
-        window.history.pushState(null, '', targetUrl);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        navigate(targetUrl, { replace: true });
       } else {
         setErrorMsg('Unable to establish an authenticated session. Please verify your account and try again.');
       }

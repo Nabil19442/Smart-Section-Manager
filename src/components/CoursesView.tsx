@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Layers,
   Plus,
@@ -35,11 +36,18 @@ interface CourseWithCounts extends Course {
 
 export const CoursesView: React.FC = () => {
   const { user, isAdmin, isConfigured } = useAuth();
+  const { id: courseIdParam } = useParams<{ id?: string }>();
   const [courses, setCourses] = useState<CourseWithCounts[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSchemaMissing, setIsSchemaMissing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(courseIdParam || '');
+
+  useEffect(() => {
+    if (courseIdParam) {
+      setSearchQuery(courseIdParam);
+    }
+  }, [courseIdParam]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
