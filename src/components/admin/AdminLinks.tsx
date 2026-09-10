@@ -454,7 +454,7 @@ export const AdminLinks: React.FC = () => {
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g. Google Classroom Section A"
+                  placeholder="e.g. Google Classroom Section E"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
                 />
               </div>
@@ -478,7 +478,7 @@ export const AdminLinks: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
-                  <option value="">General Section Bookmark</option>
+                  <option value="">General Section E Bookmark</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.course_code} - {c.course_name}

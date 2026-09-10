@@ -595,7 +595,7 @@ export const AdminNotices: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-600"
                 >
-                  <option value="">General Section Announcement</option>
+                  <option value="">General Section E Announcement</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.course_code} - {c.course_name}

@@ -146,13 +146,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold tracking-tight text-white">SectionHub</h1>
+                  <h1 className="text-base font-bold tracking-tight text-white">CR Admin Portal</h1>
                   <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
-                    CR Admin • Sec {profile?.section || 'A'}
+                    SEC E
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 hidden sm:block">
-                  Smart Academic Management Platform
+                  Class Representative Academic Management System
                 </p>
               </div>
             </div>
@@ -176,7 +176,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
 
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-indigo-950 border border-indigo-500/30 flex items-center justify-center text-indigo-300 text-xs font-bold">
-                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'A'}
+                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'E'}
               </div>
               <div className="hidden md:block text-left text-xs">
                 <p className="font-semibold text-white truncate max-w-[120px]">
@@ -313,6 +313,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onViewStudentPor
               >
                 CR Management
               </button>
+              <span className="text-slate-300">/</span>
+              <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-[11px] border border-indigo-100">
+                Section E
+              </span>
               <span className="text-slate-300">/</span>
               <span className="text-slate-900 font-semibold capitalize">
                 {activeTab === 'overview' ? 'Overview & Metrics' : activeTab}

@@ -552,7 +552,7 @@ export const AdminExams: React.FC = () => {
                   required
                   value={formData.room}
                   onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                  placeholder="e.g. UB20401 (Section A Roll 1-40)"
+                  placeholder="e.g. UB20401 (Section E Roll 1-40)"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
                 />
               </div>

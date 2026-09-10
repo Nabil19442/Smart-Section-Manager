@@ -188,7 +188,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               Welcome back, {profile?.full_name || user?.email || 'Admin'}
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Manage academic notices, courses, study materials, exam schedules, and student rosters for Section {profile?.section || 'A'}.
+              Manage academic notices, courses, study materials, exam schedules, and student rosters for Section {profile?.section && profile.section !== 'A' ? profile.section : 'E'}.
               All updates sync instantaneously to the student portal.
             </p>
           </div>
@@ -438,7 +438,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="font-medium text-slate-500">Section Assignment:</span>
-                <span className="font-semibold text-slate-800">Section {profile?.section || 'A'}</span>
+                <span className="font-semibold text-slate-800">Section {profile?.section && profile.section !== 'A' ? profile.section : 'E'}</span>
               </div>
             </div>
           </div>

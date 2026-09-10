@@ -300,7 +300,7 @@ export const ProfileView: React.FC = () => {
                 type="text"
                 value={section}
                 onChange={(e) => setSection(e.target.value)}
-                placeholder="e.g. 1 or A"
+                placeholder="e.g. E"
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
               />
             </div>

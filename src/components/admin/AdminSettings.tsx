@@ -42,7 +42,7 @@ WHERE role = 'admin';`;
           <span>System & Administrator Settings</span>
         </h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Review system parameters, Section configurations, and PostgreSQL RLS security controls.
+          Review system parameters, Section E configuration, and PostgreSQL RLS security controls.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ WHERE role = 'admin';`;
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <span className="text-slate-500 block text-[11px]">Assigned Section & Batch</span>
             <span className="font-bold text-slate-900 text-sm mt-0.5 block">
-              Section {profile?.section || 'A'} • Batch {profile?.batch || '2021-25'}
+              Section {profile?.section && profile.section !== 'A' ? profile.section : 'E'} • Batch {profile?.batch || '2021-25'}
             </span>
           </div>
 
@@ -85,6 +85,31 @@ WHERE role = 'admin';`;
                 <CheckCircle2 className="w-3.5 h-3.5" /> Full CR Privileges
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Section & Academic Configuration Panel */}
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-indigo-600" />
+          <span>Academic Section Configuration</span>
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-100">
+            <span className="text-slate-500 block text-[11px]">Current Active Section</span>
+            <span className="font-bold text-indigo-900 text-sm mt-0.5 block">Section E</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-slate-500 block text-[11px]">Canonical DB Storage Value</span>
+            <span className="font-mono font-bold text-slate-800 text-sm mt-0.5 block">E</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <span className="text-slate-500 block text-[11px]">Portal Display Format</span>
+            <span className="font-semibold text-slate-800 text-sm mt-0.5 block">Section E / Sec E</span>
           </div>
         </div>
       </div>

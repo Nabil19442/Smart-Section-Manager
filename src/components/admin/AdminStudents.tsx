@@ -33,7 +33,7 @@ export const AdminStudents: React.FC = () => {
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('all');
+  const [sectionFilter, setSectionFilter] = useState('E');
   const [roleFilter, setRoleFilter] = useState('all');
 
   // Edit modal
@@ -84,7 +84,7 @@ export const AdminStudents: React.FC = () => {
       full_name: student.full_name || '',
       student_id: student.student_id || '',
       roll: student.roll || '',
-      section: student.section || '',
+      section: student.section || 'E',
       batch: student.batch || '',
     });
     setIsEditModalOpen(true);
@@ -130,7 +130,10 @@ export const AdminStudents: React.FC = () => {
       (s.roll && s.roll.toLowerCase().includes(q));
 
     const matchesSection =
-      sectionFilter === 'all' || s.section?.toLowerCase() === sectionFilter.toLowerCase();
+      sectionFilter === 'all' ||
+      (sectionFilter === 'E'
+        ? (!s.section || s.section.toUpperCase() === 'E' || s.section.toUpperCase() === 'SEC E' || s.section.toUpperCase() === 'SECTION E')
+        : s.section?.toLowerCase() === sectionFilter.toLowerCase());
 
     const matchesRole =
       roleFilter === 'all' || s.role?.toLowerCase() === roleFilter.toLowerCase();
@@ -168,17 +171,17 @@ export const AdminStudents: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Users className="w-5 h-5 text-indigo-600" />
-            <span>Student Roster & Directory</span>
+            <span>Section E Student Directory & Roster</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            View registered students, verified rolls, sections, and maintain directory accuracy.
+            View registered Section E students, verified rolls, and maintain directory accuracy.
           </p>
         </div>
 
         <div className="text-xs text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5">
           <GraduationCap className="w-4 h-4 text-indigo-600" />
-          <span>Total Enrolled: </span>
-          <strong className="text-slate-900 font-bold">{students.length}</strong>
+          <span>Section E Enrolled: </span>
+          <strong className="text-slate-900 font-bold">{filteredStudents.length}</strong>
         </div>
       </div>
 
@@ -210,12 +213,10 @@ export const AdminStudents: React.FC = () => {
           <select
             value={sectionFilter}
             onChange={(e) => setSectionFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-indigo-500"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-indigo-500"
           >
-            <option value="all">All Sections</option>
-            <option value="A">Section A</option>
-            <option value="B">Section B</option>
-            <option value="C">Section C</option>
+            <option value="E">Section E</option>
+            <option value="all">All Records</option>
           </select>
 
           <select
@@ -285,7 +286,7 @@ export const AdminStudents: React.FC = () => {
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1.5">
                         <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold text-[10px]">
-                          Sec {s.section || 'A'}
+                          Sec {s.section && s.section !== 'A' ? s.section : 'E'}
                         </span>
                         {s.batch && (
                           <span className="text-slate-500 text-[11px]">
@@ -380,7 +381,7 @@ export const AdminStudents: React.FC = () => {
                     type="text"
                     value={editFormData.section}
                     onChange={(e) => setEditFormData({ ...editFormData, section: e.target.value })}
-                    placeholder="e.g. A"
+                    placeholder="e.g. E"
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-600 uppercase"
                   />
                 </div>
