@@ -18,10 +18,15 @@ create table if not exists public.profiles (
   email text not null,
   student_id text,
   roll text,
-  section text,
+  section text default 'E',
   batch text,
   avatar_url text,
   role text not null default 'student',
+  is_cr boolean default false,
+  cr_for_section text default 'E',
+  contact_information text,
+  bio text,
+  is_active boolean default true,
   created_at timestamptz not null default timezone('utc'::text, now()),
   updated_at timestamptz not null default timezone('utc'::text, now())
 );
@@ -505,18 +510,42 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, email, avatar_url, role)
+  insert into public.profiles (
+    id,
+    full_name,
+    email,
+    student_id,
+    roll,
+    section,
+    batch,
+    avatar_url,
+    role,
+    is_cr,
+    cr_for_section,
+    is_active
+  )
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
     new.email,
+    new.raw_user_meta_data->>'student_id',
+    new.raw_user_meta_data->>'roll',
+    coalesce(new.raw_user_meta_data->>'section', 'E'),
+    new.raw_user_meta_data->>'batch',
     coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture', null),
-    'student'
+    'student',
+    false,
+    'E',
+    true
   )
   on conflict (id) do update
   set
     email = excluded.email,
-    full_name = case when public.profiles.full_name = '' then excluded.full_name else public.profiles.full_name end,
+    full_name = case when public.profiles.full_name = '' or public.profiles.full_name is null then excluded.full_name else public.profiles.full_name end,
+    student_id = coalesce(public.profiles.student_id, excluded.student_id),
+    roll = coalesce(public.profiles.roll, excluded.roll),
+    section = coalesce(public.profiles.section, excluded.section, 'E'),
+    batch = coalesce(public.profiles.batch, excluded.batch),
     avatar_url = coalesce(public.profiles.avatar_url, excluded.avatar_url),
     updated_at = now();
 

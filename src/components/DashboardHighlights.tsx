@@ -24,6 +24,7 @@ import {
   Notice,
 } from '../lib/fallbackData';
 import { TabType } from './Navigation';
+import { CRRepresentativeCard } from './CRRepresentativeCard';
 
 interface DashboardHighlightsProps {
   onNavigateTab: (tab: TabType) => void;
@@ -411,47 +412,8 @@ export const DashboardHighlights: React.FC<DashboardHighlightsProps> = ({ onNavi
           </div>
         </div>
 
-        {/* What's New Card */}
-        <div
-          onClick={() => onNavigateTab('notices')}
-          className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  What's New
-                </span>
-              </div>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-bold">
-                <span>Section Hub Sync</span>
-              </div>
-              <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                Real-time Academic Stream
-              </h4>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Coursework, routine notices, class tests, and drive links are maintained live by your CR.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              <Bell className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-              Feed updated
-            </span>
-            <span className="text-[11px] font-semibold text-slate-500 group-hover:text-indigo-600">
-              View feed
-            </span>
-          </div>
-        </div>
+        {/* Section Representative / Our CR Card (Live from Supabase) */}
+        <CRRepresentativeCard />
       </div>
     </section>
   );

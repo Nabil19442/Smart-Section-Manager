@@ -46,15 +46,28 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
     setLoading(true);
     try {
       // 1. Fetch exact counts from each table
+      // Count enrolled students (non-admins) in Section E
+      const { data: profileList } = await supabase
+        .from('profiles')
+        .select('id, role, section');
+
+      const enrolledStudentCount = (profileList || []).filter((p) => {
+        const isStudent = p.role !== 'admin';
+        const isSecE =
+          !p.section ||
+          p.section.toUpperCase() === 'E' ||
+          p.section.toUpperCase() === 'SEC E' ||
+          p.section.toUpperCase() === 'SECTION E';
+        return isStudent && isSecE;
+      }).length;
+
       const [
-        studentsRes,
         coursesRes,
         noticesRes,
         materialsRes,
         deadlinesRes,
         examsRes,
       ] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('courses').select('id', { count: 'exact', head: true }),
         supabase.from('notices').select('id', { count: 'exact', head: true }),
         supabase.from('materials').select('id', { count: 'exact', head: true }),
@@ -63,7 +76,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
       ]);
 
       setStats({
-        students: studentsRes.count ?? 0,
+        students: enrolledStudentCount,
         courses: coursesRes.count ?? 0,
         notices: noticesRes.count ?? 0,
         materials: materialsRes.count ?? 0,
@@ -119,7 +132,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
 
   const statCards = [
     {
-      title: 'Total Students',
+      title: 'Enrolled Students',
       value: stats.students,
       icon: Users,
       color: 'text-blue-600',

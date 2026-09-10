@@ -17,15 +17,28 @@ export const AdminSettings: React.FC = () => {
   const { user, profile } = useAuth();
   const [copiedSql, setCopiedSql] = useState(false);
 
-  const promotionSql = `-- Promote a student to Class Representative / Admin
-UPDATE public.profiles
-SET role = 'admin'
-WHERE email = '${user?.email || 'student@university.edu'}';
+  const promotionSql = `-- 1. Add CR & Student Enrollment columns to profiles (safe idempotent)
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS is_cr boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS cr_for_section text DEFAULT 'E',
+  ADD COLUMN IF NOT EXISTS contact_information text,
+  ADD COLUMN IF NOT EXISTS bio text,
+  ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 
--- Verify the promotion
-SELECT id, email, full_name, role, section 
+-- 2. Designate Section E Class Representative
+UPDATE public.profiles
+SET 
+  role = 'admin',
+  is_cr = true,
+  cr_for_section = 'E',
+  section = 'E',
+  bio = 'Section E Class Representative. Reach out for routine, exams, and academic queries.'
+WHERE email = '${user?.email || 'nabilmubashir730@gmail.com'}';
+
+-- 3. Verify Section E CR
+SELECT id, email, full_name, role, is_cr, cr_for_section, section 
 FROM public.profiles 
-WHERE role = 'admin';`;
+WHERE is_cr = true OR role = 'admin';`;
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(promotionSql);
