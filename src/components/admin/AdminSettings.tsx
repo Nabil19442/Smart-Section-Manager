@@ -22,21 +22,27 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS is_cr boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS cr_for_section text DEFAULT 'E',
   ADD COLUMN IF NOT EXISTS contact_information text,
+  ADD COLUMN IF NOT EXISTS phone text,
   ADD COLUMN IF NOT EXISTS bio text,
   ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 
--- 2. Designate Section E Class Representative
+-- 2. Designate Section E Class Representative (Student ID 251-15-480)
 UPDATE public.profiles
 SET 
+  full_name = 'Jawaed Arafat Mashfee',
+  student_id = '251-15-480',
+  phone = '01955334622',
   role = 'admin',
   is_cr = true,
   cr_for_section = 'E',
   section = 'E',
-  bio = 'Section E Class Representative. Reach out for routine, exams, and academic queries.'
-WHERE email = '${user?.email || 'nabilmubashir730@gmail.com'}';
+  batch = '68',
+  roll = '480',
+  bio = coalesce(bio, 'Feel free to contact me regarding section-related academic matters, class schedules, or exam guidelines.')
+WHERE student_id = '251-15-480' OR role = 'admin' OR email = '${user?.email || 'nabilmubashir730@gmail.com'}';
 
 -- 3. Verify Section E CR
-SELECT id, email, full_name, role, is_cr, cr_for_section, section 
+SELECT id, email, full_name, student_id, phone, role, is_cr, cr_for_section, section 
 FROM public.profiles 
 WHERE is_cr = true OR role = 'admin';`;
 

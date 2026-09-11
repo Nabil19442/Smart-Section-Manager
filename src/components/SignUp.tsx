@@ -27,7 +27,7 @@ export const SignUp: React.FC<SignUpProps> = ({
   const [fullName, setFullName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [batch, setBatch] = useState('');
-  const [section, setSection] = useState('');
+  const [section, setSection] = useState('E');
   const [roll, setRoll] = useState('');
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
@@ -140,14 +140,14 @@ export const SignUp: React.FC<SignUpProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Section
+              Section (Default: Section E)
             </label>
             <input
               type="text"
               value={section}
               onChange={(e) => setSection(e.target.value)}
-              placeholder="Section 2"
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+              placeholder="E"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 font-semibold"
             />
           </div>
 

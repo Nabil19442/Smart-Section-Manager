@@ -7,10 +7,11 @@ import {
   Shield,
   Loader2,
   AlertCircle,
-  ExternalLink,
+  Phone,
+  User,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { fetchSectionCR, Profile } from '../lib/crService';
+import { fetchSectionCR, Profile, getInitials, sanitizeAvatarUrl } from '../lib/crService';
 import { CRProfileModal } from './CRProfileModal';
 import { getSignedFileUrl } from '../lib/storageService';
 
@@ -29,12 +30,13 @@ export const CRRepresentativeCard: React.FC<CRRepresentativeCardProps> = () => {
       const data = await fetchSectionCR('E');
       setCr(data);
 
-      if (data?.avatar_url) {
+      const cleanAvatar = sanitizeAvatarUrl(data?.avatar_url);
+      if (cleanAvatar) {
         try {
-          const signed = await getSignedFileUrl(data.avatar_url);
+          const signed = await getSignedFileUrl(cleanAvatar);
           setAvatarUrl(signed);
         } catch {
-          setAvatarUrl(data.avatar_url);
+          setAvatarUrl(cleanAvatar);
         }
       } else {
         setAvatarUrl(null);
@@ -101,9 +103,10 @@ export const CRRepresentativeCard: React.FC<CRRepresentativeCardProps> = () => {
                       src={avatarUrl}
                       alt={cr.full_name || 'CR'}
                       className="w-full h-full object-cover"
+                      onError={() => setAvatarUrl(null)}
                     />
                   ) : (
-                    (cr.full_name || 'CR').charAt(0).toUpperCase()
+                    <span>{getInitials(cr.full_name)}</span>
                   )}
                 </div>
 
@@ -118,6 +121,29 @@ export const CRRepresentativeCard: React.FC<CRRepresentativeCardProps> = () => {
               </div>
 
               <div className="space-y-1.5 pt-1 text-xs text-slate-600">
+                {cr.student_id && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>
+                      Student ID:{' '}
+                      <strong className="font-mono text-slate-800">{cr.student_id}</strong>
+                    </span>
+                  </div>
+                )}
+                {(cr.phone || cr.contact_information) && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>
+                      Phone:{' '}
+                      <a
+                        href={`tel:${cr.phone || cr.contact_information}`}
+                        className="font-medium text-slate-800 hover:text-indigo-600"
+                      >
+                        {cr.phone || cr.contact_information}
+                      </a>
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-slate-600 truncate">
                   <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <a
@@ -171,3 +197,4 @@ export const CRRepresentativeCard: React.FC<CRRepresentativeCardProps> = () => {
     </>
   );
 };
+

@@ -25,6 +25,7 @@ create table if not exists public.profiles (
   is_cr boolean default false,
   cr_for_section text default 'E',
   contact_information text,
+  phone text,
   bio text,
   is_active boolean default true,
   created_at timestamptz not null default timezone('utc'::text, now()),

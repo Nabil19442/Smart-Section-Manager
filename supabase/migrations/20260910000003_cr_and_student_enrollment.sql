@@ -6,6 +6,7 @@
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_cr boolean DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cr_for_section text DEFAULT 'E';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS contact_information text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 
@@ -15,14 +16,20 @@ CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_is_cr ON public.profiles(is_cr);
 CREATE INDEX IF NOT EXISTS idx_profiles_is_active ON public.profiles(is_active);
 
--- 3. Update existing admin profiles for Section E CR
+-- 3. Update existing profile for Section E Class Representative (Student ID 251-15-480)
 UPDATE public.profiles
 SET
+  full_name = 'Jawaed Arafat Mashfee',
+  student_id = '251-15-480',
+  phone = '01955334622',
+  role = 'admin',
   is_cr = true,
   cr_for_section = 'E',
   section = 'E',
-  bio = coalesce(bio, 'Feel free to contact me regarding section-related academic matters.')
-WHERE role = 'admin' OR email IN ('nabilmubashir730@gmail.com', 'admin@university.edu');
+  batch = '68',
+  roll = '480',
+  bio = coalesce(bio, 'Feel free to contact me regarding section-related academic matters, class schedules, or exam guidelines.')
+WHERE student_id = '251-15-480' OR role = 'admin' OR email IN ('nabilcse442@gmail.com', 'nabilmubashir730@gmail.com', 'admin@university.edu');
 
 -- 4. Enable RLS on profiles (already enabled, ensure policies are comprehensive)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -115,3 +122,10 @@ BEGIN
   RETURN new;
 END;
 $$;
+
+DROP TRIGGER IF EXISTS tr_protect_profile_role ON public.profiles;
+CREATE TRIGGER tr_protect_profile_role
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_role();
+

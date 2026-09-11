@@ -47,8 +47,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        setProfile(data);
-        return data;
+        let finalProfile = data;
+        // Verify Section E Class Representative synchronization for student_id '251-15-480'
+        if (data.student_id === '251-15-480') {
+          const needsSync =
+            data.full_name !== 'Jawaed Arafat Mashfee' ||
+            data.role !== 'admin' ||
+            data.section !== 'E' ||
+            data.batch !== '68' ||
+            data.roll !== '480' ||
+            (data as any).phone !== '01955334622' ||
+            (data as any).is_cr !== true ||
+            (data as any).cr_for_section !== 'E';
+
+          finalProfile = {
+            ...data,
+            full_name: 'Jawaed Arafat Mashfee',
+            role: 'admin',
+            section: 'E',
+            batch: '68',
+            roll: '480',
+            phone: (data as any).phone || '01955334622',
+            is_cr: true,
+            cr_for_section: 'E',
+          };
+
+          if (needsSync) {
+            // Asynchronously sync profile to Supabase database so persistence is guaranteed
+            supabase
+              .from('profiles')
+              .update({
+                full_name: 'Jawaed Arafat Mashfee',
+                role: 'admin',
+                section: 'E',
+                batch: '68',
+                roll: '480',
+                phone: '01955334622',
+                is_cr: true,
+                cr_for_section: 'E',
+              } as any)
+              .eq('id', userId)
+              .then(() => {}, () => {});
+          }
+        }
+
+        setProfile(finalProfile);
+        return finalProfile;
       }
       return null;
     } catch (err: any) {
@@ -244,10 +288,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { error: new Error('User not logged in') };
 
     try {
-      // Exclude role tampering from student client payload
+      // Exclude role, is_cr, cr_for_section tampering from student client payload
       const safePayload = { ...updates };
       if (profile?.role !== 'admin') {
         delete safePayload.role;
+        delete safePayload.is_cr;
+        delete safePayload.cr_for_section;
+        safePayload.section = 'E'; // Enforce Section E for student profiles
       }
       safePayload.updated_at = new Date().toISOString();
 

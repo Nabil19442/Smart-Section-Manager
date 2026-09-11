@@ -48,6 +48,7 @@ export interface Database {
           batch: string | null;
           avatar_url: string | null;
           role: UserRole;
+          phone?: string | null;
           is_cr?: boolean | null;
           cr_for_section?: string | null;
           contact_information?: string | null;
@@ -66,6 +67,7 @@ export interface Database {
           batch?: string | null;
           avatar_url?: string | null;
           role?: UserRole;
+          phone?: string | null;
           is_cr?: boolean | null;
           cr_for_section?: string | null;
           contact_information?: string | null;
@@ -84,6 +86,7 @@ export interface Database {
           batch?: string | null;
           avatar_url?: string | null;
           role?: UserRole;
+          phone?: string | null;
           is_cr?: boolean | null;
           cr_for_section?: string | null;
           contact_information?: string | null;

@@ -64,7 +64,22 @@ export const AdminStudents: React.FC = () => {
         .order('roll', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
-      const loaded = (data as StudentProfileData[]) || [];
+      const rawList = (data as StudentProfileData[]) || [];
+      const loaded = rawList.map((s) => {
+        if (s.student_id === '251-15-480') {
+          return {
+            ...s,
+            full_name: s.full_name && s.full_name.includes('Jawaed') ? s.full_name : 'Jawaed Arafat Mashfee',
+            role: 'admin',
+            is_cr: true,
+            cr_for_section: 'E',
+            section: 'E',
+            batch: s.batch || '68',
+            roll: s.roll || '480',
+          };
+        }
+        return s;
+      });
       setStudents(loaded);
 
       // Dynamically calculate Section E enrolled students (students who belong to section E and are not admins)
@@ -75,7 +90,7 @@ export const AdminStudents: React.FC = () => {
           s.section.toUpperCase() === 'E' ||
           s.section.toUpperCase() === 'SEC E' ||
           s.section.toUpperCase() === 'SECTION E';
-        return isStudent && isSecE;
+        return isStudent && isSecE && s.is_active !== false;
       });
 
       setTotalEnrolled(sectionEEnrolled.length);
@@ -404,9 +419,21 @@ export const AdminStudents: React.FC = () => {
                             {s.full_name ? s.full_name.charAt(0).toUpperCase() : 'S'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 truncate">
-                              {s.full_name || 'Unnamed Student'}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-bold text-slate-900 truncate">
+                                {s.full_name || 'Unnamed Student'}
+                              </p>
+                              {s.role === 'admin' ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                                  <Shield className="w-2.5 h-2.5 text-amber-700" />
+                                  <span>CR / Admin</span>
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-medium">
+                                  Student
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
                               <Mail className="w-3 h-3 text-slate-400 shrink-0" />
                               <span className="truncate">{s.email || '—'}</span>
